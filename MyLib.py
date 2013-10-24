@@ -87,6 +87,6 @@ def create_and_init_frqdis(*argvs):
 
 def print_seg(kws):
     for kw in kws:
-        print kw.word+'/'+kw.flag,
+        print kw.token.word+'/'+kw.token.flag,
     print
 
