@@ -50,15 +50,15 @@ def backward_maxmatch( s, dict, maxWordLen, minWordLen ):
         while curR - curL >= minWordLen: # try all subsets backwards
             if s[curL:curR] in dict: # matched
                 wordList.insert(0,(curL,curR))
-                curR = curL;
+                curR = curL
                 if( curR - maxWordLen < 0):
                     curL=0
                 else:
                     curL = curR - maxWordLen
-                isMatched = True;
-                break;
+                isMatched = True
+                break
             else: #not matched, try subset by moving left rightwards
-                curL=curL+1;
+                curL=curL+1
 
         # not matched, move the right end leftwards
         if not isMatched: curR=curR-1
@@ -67,6 +67,8 @@ def backward_maxmatch( s, dict, maxWordLen, minWordLen ):
 
 def tweet_filter( tweet ):
     """filter out the noise in a tweet for text analysis: url,emoji,"""
+    tweet = regex_mention.sub(" ",tweet)
+    tweet = tweet.strip()
     tweet = regex_url.sub(" ", tweet )
     tweet = regex_emoji.sub(" ", tweet)
     tweet = regex_cnpunc.sub( " ", tweet)
