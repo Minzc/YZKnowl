@@ -11,25 +11,46 @@ import sys
 import re
 import FreqBase
 STOP_DIC = 'stopwords.txt'
-lns = [ln for ln in open('testCodeCrrct.txt').readlines()]
+lns = [ln.decode('utf-8').lower() for ln in open('testCodeCrrct.txt').readlines()]
 
 
 
 
 def test_load_knw_base():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
-    print class_entity['物超所值'][0]
-    print '物超所值' in sent_dic
+#    print class_entity['物超所值'][0]
+    print u'冰冰' in synonym.keys()
+    print len('好'.decode('utf-8'))
 
 def test_gen_model_get_kws_knwbase():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
     for ln in lns:
         print ln
-        kws = FreqBase.gen_model_get_kws_knwbase(ln,synonym,'伊利谷粒多')
+        print u'帅' in synonym.keys()
+        kws,obj_poss = FreqBase.generate_segment_lst_know(ln,synonym,u'伊利谷粒多')
         for kw in kws:
-            print kw.token.word,kw.wrdpos
+            print kw.token.word,kw.wrd_strt_pos,kw.wrd_end_pos,kw.sntnc
+            for kw_2 in kws:
+                if kw != kw_2:
+                    print kw_2.token.word
+                    print FreqBase.decide_dis_feature_type(kw,kw_2)
+def test_load_model():
+    kw_pair_wd_dis,kw_pair_snt_dis,kw_distr = FreqBase.load_mdl('model.txt')
+    for pair,dist in kw_distr.items():
+        print pair.encode('utf-8')
 
+def test_classify():
+    FreqBase.DEBUG = True
+    FreqBase.class_new('testCodeCrrct.txt')
 
+def format_know_base():
+    lns = [ln.decode('utf-8').strip().lower()
+           for ln in open('untitled.txt').readlines() if not ln.startswith('#')]
+    for ln in lns:
+        ln_seg = ln.split('\t')
+        print ln_seg[0].strip().encode('utf-8')+'\t'+ln_seg[1].strip().encode('utf-8')+'\t'+ln_seg[2].strip().encode('utf-8')
 if __name__ == '__main__':
 #    test_gen_model_get_kws_knwbase()
     test_load_knw_base()
+#    test_load_model()
+#    test_classify()
