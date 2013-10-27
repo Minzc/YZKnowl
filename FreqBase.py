@@ -157,6 +157,8 @@ def generate_segment_lst_know(ln,synonym,obj_name):
     pre_phrases_len = 0
     phrase_position = 0
     for sub_sent_index in range(len(sub_sents)):
+        if DEBUG:
+            print sub_sents[sub_sent_index]
         for phrases in kw_util.tweet_filter(sub_sents[sub_sent_index]).strip().split(' '):
             if len(phrases) < 1:
                 continue
@@ -339,6 +341,7 @@ def punc_replace(ln):
     ln = re.sub(ur'）',')',ln)
     ln = re.sub(u'\.\.',u'…',ln)
     ln = re.sub(u'～','~',ln)
+    ln = re.sub(r'\(.*?\)','',ln)
     return ln
 
 def train_data_clean(infile):

@@ -49,12 +49,13 @@ def format_know_base():
         ln_seg = ln.split('\t')
         print ln_seg[0].strip().encode('utf-8')+'\t'+ln_seg[1].strip().encode('utf-8')+'\t'+ln_seg[2].strip().encode('utf-8')
 def testPuncReplace():
-    ln = 'good！a！b。c，d？e（f）g。。h～g'
+    ln = 'good！a！b。c，d？e（f）)k)g。。h～g'
     ln =  FreqBase.punc_replace(ln.decode('utf-8'))
+    print re.sub(r'\(.*?\)','',ln)
     print re.split(ur'[!.?…]',ln)
 if __name__ == '__main__':
 #    test_gen_model_get_kws_knwbase()
-    test_load_knw_base()
+#    test_load_knw_base()
 #    test_load_model()
-#    test_classify()
+    test_classify()
 #    testPuncReplace()
