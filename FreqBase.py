@@ -14,16 +14,19 @@ import math
 STOP_DIC = 'stopwords.txt'
 LESS_THAN_THREE_WORDS = 1
 MORE_THAN_THREE_WORDS = 2
-LESS_THAN_ONE_SENT = 3
-MORE_THAN_ONE_SENT = 4
+LESS_THAN_TWO_PHRASE = 3
+MORE_THAN_TWO_PHRASE = 4
+LESS_THAN_ONE_SENT = 5
+MORE_THAN_ONE_SENT = 6
 
 APLHI = 0.5
 DEBUG = False
 KNWB_PATH = 'knowl-base.txt'
 
 class Token:
-    def __init__(self,sntnc_in_twt,word_strt_pos,word_end_pos,seg_token):
+    def __init__(self,sntnc_in_twt,phrase,word_strt_pos,word_end_pos,seg_token):
         self.sntnc = sntnc_in_twt
+        self.phrase = phrase
         self.wrd_strt_pos = word_strt_pos
         self.wrd_end_pos = word_end_pos
         self.token = seg_token
@@ -48,6 +51,9 @@ def load_knw_base():
         if ln.startswith('#') or len(ln) ==0:
             continue
         entity,instances,classes = ln.split('\t')
+        if classes == u'食品':
+            # TODO: remove noise
+            continue
         for cls in classes.split('|'):
             if len(cls) != 0:
                 if u'情感词' in cls:
@@ -65,8 +71,7 @@ def load_knw_base():
 def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
     entity_class,synonym,senti_dic = load_knw_base()
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
-    kw_pair_wd_dis = {}
-    kw_pair_snt_dis = {}
+    kw_pair_wd_dis,kw_pair_snt_dis,kw_pair_phrs_dis = {},{},{}
     kw_distr = nltk.FreqDist()
 
     for ln in lns:
@@ -78,7 +83,7 @@ def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
                     continue
                 kw_pair = kw1.token.word+'$'+kw2.token.word
                 kw_distr.inc(kw_pair)
-                wd_dis_type,snt_dis_type =  decide_dis_feature_type(kw1,kw2)
+                wd_dis_type,snt_dis_type,phrase_dis_type =  decide_dis_feature_type(kw1,kw2)
                 # word distance
                 kw_pair_wd_dis.setdefault(kw_pair,MyLib.create_and_init_frqdis(MORE_THAN_THREE_WORDS,LESS_THAN_THREE_WORDS))
                 kw_pair_wd_dis[kw_pair].inc(wd_dis_type)
@@ -86,6 +91,11 @@ def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
                 # sentence distance
                 kw_pair_snt_dis.setdefault(kw_pair,MyLib.create_and_init_frqdis(LESS_THAN_ONE_SENT,MORE_THAN_ONE_SENT))
                 kw_pair_snt_dis[kw_pair].inc(snt_dis_type)
+
+                # phrase distance
+                kw_pair_phrs_dis.setdefault(kw_pair,MyLib.create_and_init_frqdis(LESS_THAN_TWO_PHRASE,MORE_THAN_TWO_PHRASE))
+                kw_pair_phrs_dis[kw_pair].inc(phrase_dis_type)
+
     print '#WD_PAIR_DISTR'
     for kw_pair,wd_dises in kw_pair_wd_dis.items():
         for type,value in wd_dises.items():
@@ -94,6 +104,10 @@ def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
     for kw_pair,snt_dises in kw_pair_snt_dis.items():
         for type,value in snt_dises.items():
             print kw_pair.encode('utf-8')+'$'+str(type)+'$'+str(value)
+    print '#PHRS_PAIR_DISTR'
+    for kw_pair,phrs_dises in kw_pair_phrs_dis.items():
+        for type,value in phrs_dises.items():
+            print kw_pair.encode('utf-8')+'$'+str(type)+'$'+str(value)
     print '#WD_DIST'
     for kw,count in kw_distr.items():
         print kw.encode('utf-8')+'$'+str(count+1)
@@ -101,8 +115,7 @@ def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
 
 def load_mdl(infile = 'snti_mdl.txt'):
     lns = [ln.decode('utf-8').lower().strip() for ln in open(infile).readlines()]
-    kw_pair_wd_dis = {}
-    kw_pair_snt_dis = {}
+    kw_pair_wd_dis,kw_pair_snt_dis,kw_pair_phrs_dis = {},{},{}
     pair_distr = nltk.FreqDist()
     feature_type = -1
     for ln in lns:
@@ -114,6 +127,9 @@ def load_mdl(infile = 'snti_mdl.txt'):
             continue
         elif ln == '#WD_DIST'.lower():
             feature_type = 2
+            continue
+        elif ln == '#PHRS_PAIR_DISTR'.lower():
+            feature_type = 3
             continue
 
         if feature_type == 0:
@@ -127,20 +143,24 @@ def load_mdl(infile = 'snti_mdl.txt'):
         elif feature_type == 2:
             kw1,kw2,value = ln.strip().split('$')
             pair_distr[kw1+'$'+kw2] = int(value)
-    return kw_pair_wd_dis,kw_pair_snt_dis,pair_distr
+        elif feature_type == 3:
+            kw1,kw2,type,value = ln.strip().split('$')
+            kw_pair_phrs_dis.setdefault(kw1+'$'+kw2,nltk.FreqDist())
+            kw_pair_phrs_dis[kw1+'$'+kw2].inc(int(type),int(value))
+    return kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,pair_distr
 
 def generate_segment_lst_know(ln,synonym,obj_name):
     know_dic = set(synonym.keys())
     know_dic.add(obj_name)
-    sub_sents = filter(lambda x: x != '',re.split(r"[!.?,]",punc_replace(ln)))
+    sub_sents = filter(lambda x: x != '',re.split(ur"[!.?…~]",punc_replace(ln)))
     kws,obj_poss = [],[]
     pre_phrases_len = 0
+    phrase_position = 0
     for sub_sent_index in range(len(sub_sents)):
         for phrases in kw_util.tweet_filter(sub_sents[sub_sent_index]).strip().split(' '):
             if len(phrases) < 1:
                 continue
             kw_poses = kw_util.backward_maxmatch( phrases, know_dic, 100, 2 )
-            print kw_poses
             for kw_pos in kw_poses:
                 start,end,abs_word_start,abs_word_end = kw_pos[0],\
                                                         kw_pos[1],\
@@ -148,12 +168,13 @@ def generate_segment_lst_know(ln,synonym,obj_name):
                                                         pre_phrases_len+kw_pos[1]
                 keyword = phrases[start:end]
                 if phrases[start:end] == obj_name:
-                    obj_token = Token(sub_sent_index,abs_word_start,abs_word_end,Seg_token(synonym[keyword],'obj'))
+                    obj_token = Token(sub_sent_index,phrase_position,abs_word_start,abs_word_end,Seg_token(synonym[keyword],'obj'))
                     kws.append(obj_token)
                     obj_poss.append(obj_token)
                 else:
-                    kws.append(Token(sub_sent_index,abs_word_start,abs_word_end,Seg_token(synonym[keyword],'')))
+                    kws.append(Token(sub_sent_index,phrase_position,abs_word_start,abs_word_end,Seg_token(synonym[keyword],'')))
             pre_phrases_len += len(phrases)
+            phrase_position += 1
     return kws,obj_poss
 def decide_dis_feature_type(kw1,kw2):
     # absolute word distance
@@ -161,14 +182,18 @@ def decide_dis_feature_type(kw1,kw2):
     if word_distance < 0:
         word_distance = kw2.wrd_strt_pos - kw1.wrd_end_pos
     # Distance Feature
-    wd_dis_type,snt_dis_type = MORE_THAN_THREE_WORDS,MORE_THAN_ONE_SENT
+    wd_dis_type,snt_dis_type,phrase_dis_type = MORE_THAN_THREE_WORDS,\
+                                               MORE_THAN_ONE_SENT,\
+                                               MORE_THAN_TWO_PHRASE
     if abs(kw1.sntnc-kw2.sntnc) < 2:
         snt_dis_type = LESS_THAN_ONE_SENT
     if (word_distance/2) < 3:
         wd_dis_type = LESS_THAN_THREE_WORDS
-    return wd_dis_type,snt_dis_type
+    if abs(kw1.phrase - kw2.phrase) < 2:
+        phrase_dis_type = LESS_THAN_TWO_PHRASE
+    return wd_dis_type,snt_dis_type,phrase_dis_type
 
-def select_sentiment_word(kws,snt_dic,feature,kw_pair_wd_dis,kw_pair_snt_dis,kw_distr,total_pair_occur):
+def select_sentiment_word(kws,snt_dic,feature,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,pair_distr,total_pair_occur):
     # For each keyword, go through all words in the sub-sentence to mine best sentiment keywords
     max_likelihood = -1
     best_fit_senti = ''
@@ -180,31 +205,39 @@ def select_sentiment_word(kws,snt_dic,feature,kw_pair_wd_dis,kw_pair_snt_dis,kw_
         # Only classify words in sentiment dictionary or adjective
         if kw.token.word in snt_dic:
             snt_lkhd = 1
-            wd_dis_type,snt_dis_type = decide_dis_feature_type(kw,feature)
+            wd_dis_type,snt_dis_type,phrase_dis_type = decide_dis_feature_type(kw,feature)
             feature_senti_pair = feature.token.word + '$' + kw.token.word
+            # P(c=dis|kw-sentiment)
             if kw_pair_wd_dis.has_key(feature_senti_pair):
                 snt_lkhd *= kw_pair_wd_dis[feature_senti_pair][wd_dis_type]\
                               / sum(kw_pair_wd_dis[feature_senti_pair].values())
             else:
                 snt_lkhd *= 0.5
             if DEBUG:
-                print 'SENTIMENT:',feature_senti_pair,snt_lkhd,wd_dis_type
+                print 'SENTIMENT WORD:',feature_senti_pair,snt_lkhd,wd_dis_type
 
-            # P(c=dic|kw-sentiment)
+
             if kw_pair_snt_dis.has_key(feature_senti_pair):
                 snt_lkhd *= kw_pair_snt_dis[feature_senti_pair][snt_dis_type]\
                               / sum(kw_pair_snt_dis[feature_senti_pair].values())
             else:
                 snt_lkhd *= 0.5
             if DEBUG:
-                print 'SENTIMENT:',feature_senti_pair,snt_lkhd,snt_dis_type
+                print 'SENTIMENT SENTENCE:',feature_senti_pair,snt_lkhd,snt_dis_type
+
+            if kw_pair_phrs_dis.has_key(feature_senti_pair):
+                snt_lkhd *= kw_pair_phrs_dis[feature_senti_pair][phrase_dis_type] \
+                            / sum(kw_pair_phrs_dis[feature_senti_pair].values())
+            else:
+                snt_lkhd *= 0.5
+            if DEBUG:
+                print 'SENTIMENT PHRASE:',feature_senti_pair,snt_lkhd,phrase_dis_type
 
             # P(kw-sentiment)
-            snt_lkhd = snt_lkhd * kw_distr.get(feature_senti_pair,1) / total_pair_occur
+            snt_lkhd = snt_lkhd * pair_distr.get(feature_senti_pair,1) / total_pair_occur
             if DEBUG:
-                print 'Sentiment Final Score:',feature_senti_pair,snt_lkhd,kw_distr.get(feature_senti_pair,1)
-            if len(kw.token.word) == 1:
-                snt_lkhd /= 2
+                print 'Sentiment Final Score:',feature_senti_pair,snt_lkhd,pair_distr.get(feature_senti_pair,1)
+
             if snt_lkhd > max_likelihood or \
                (snt_lkhd == max_likelihood and wd_dis_type < prv_dis_type):
                 best_fit_senti = kw.token.word
@@ -213,7 +246,7 @@ def select_sentiment_word(kws,snt_dic,feature,kw_pair_wd_dis,kw_pair_snt_dis,kw_
 
 def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 'model.txt',):
     # Load Model
-    kw_pair_wd_dis,kw_pair_snt_dis,pair_distr = load_mdl(model_name)
+    kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,pair_distr = load_mdl(model_name)
     entity_class,synonym,sent_dic = load_knw_base()
     total_pair_occur = 0
     for pair,dist in kw_pair_snt_dis.items():
@@ -240,12 +273,14 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
             for obj_pos in obj_poss:
                 likelihood = 1
                 # Distance Feature
-                wd_dis_type,snt_dis_type = decide_dis_feature_type(obj_pos,feature)
+                wd_dis_type,snt_dis_type,phrase_dis_type = decide_dis_feature_type(obj_pos,feature)
 
                 # First compare <obj,keyword> pair
                 # If the word pair didn't not exist in training data set, Compare <obj,flag> pair
                 # if the <obj,flag> didn't exist in train data set, assign an equal value to each type
                 # P(c=dis|obj-kw)
+
+                # Word Distance Diff
                 if kw_pair_wd_dis.has_key(obj_feature_pair):
                     likelihood *= kw_pair_wd_dis[obj_feature_pair][wd_dis_type] \
                                   / sum(kw_pair_wd_dis[obj_feature_pair].values())
@@ -255,19 +290,30 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
                 if DEBUG:
                     print 'Wb Dist Feature:',feature.token.word,likelihood,wd_dis_type
 
+                # Sentence Distance Diff
                 if kw_pair_snt_dis.has_key(obj_feature_pair):
                     likelihood *= kw_pair_snt_dis[obj_feature_pair][snt_dis_type] \
                                   / sum(kw_pair_snt_dis[obj_feature_pair].values())
                 else:
                     likelihood *= 0.5
+                if DEBUG:
+                      print 'Snt Dist Feature:',feature.token.word,likelihood,snt_dis_type
+
+                # Phrase Distance Diff
+                if kw_pair_phrs_dis.has_key(obj_feature_pair):
+                    likelihood *= kw_pair_phrs_dis[obj_feature_pair][phrase_dis_type]\
+                                  / sum(kw_pair_phrs_dis[obj_feature_pair].values())
+                else:
+                    likelihood *= 0.5
+                if DEBUG:
+                    print 'Phrs Dist Feature:',feature.token.word,likelihood,phrase_dis_type
 
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
 
-                if DEBUG:
-                    print 'Snt Dist Feature:',feature.token.word,likelihood,snt_dis_type
 
-            best_fit_senti = select_sentiment_word(kws,sent_dic,feature,kw_pair_wd_dis,kw_pair_snt_dis,pair_distr,total_pair_occur)
+
+            best_fit_senti = select_sentiment_word(kws,sent_dic,feature,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,pair_distr,total_pair_occur)
             likelihood = max_likelihood * pair_distr.get(obj_feature_pair,1) / total_pair_occur
             if feature.token.word in entity_class.keys():
                 likelihood += 1
@@ -289,6 +335,10 @@ def punc_replace(ln):
     ln = re.sub(ur'！','!',ln)
     ln = re.sub(ur'？','?',ln)
     ln = re.sub(ur'，',',',ln)
+    ln = re.sub(ur'（','(',ln)
+    ln = re.sub(ur'）',')',ln)
+    ln = re.sub(u'\.\.',u'…',ln)
+    ln = re.sub(u'～','~',ln)
     return ln
 
 def train_data_clean(infile):

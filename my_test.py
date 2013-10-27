@@ -26,7 +26,6 @@ def test_gen_model_get_kws_knwbase():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
     for ln in lns:
         print ln
-        print u'帅' in synonym.keys()
         kws,obj_poss = FreqBase.generate_segment_lst_know(ln,synonym,u'伊利谷粒多')
         for kw in kws:
             print kw.token.word,kw.wrd_strt_pos,kw.wrd_end_pos,kw.sntnc
@@ -49,8 +48,13 @@ def format_know_base():
     for ln in lns:
         ln_seg = ln.split('\t')
         print ln_seg[0].strip().encode('utf-8')+'\t'+ln_seg[1].strip().encode('utf-8')+'\t'+ln_seg[2].strip().encode('utf-8')
+def testPuncReplace():
+    ln = 'good！a！b。c，d？e（f）g。。h～g'
+    ln =  FreqBase.punc_replace(ln.decode('utf-8'))
+    print re.split(ur'[!.?…]',ln)
 if __name__ == '__main__':
 #    test_gen_model_get_kws_knwbase()
     test_load_knw_base()
 #    test_load_model()
 #    test_classify()
+#    testPuncReplace()
