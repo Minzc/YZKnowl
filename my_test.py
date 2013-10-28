@@ -49,13 +49,6 @@ def testPuncReplace():
     ln =  FreqBase.punc_replace(ln.decode('utf-8'))
     print re.sub(r'\(.*?\)','',ln)
     print re.split(ur'[!.?…;]',ln)
-def function(*argv):
-    a,\
-    b = argv
-    print a
-    print b
-def test_function():
-    function('a','b')
 
 def test_prior_rules():
     lns_after_pr_rl = []
@@ -66,11 +59,10 @@ def test_prior_rules():
 
 
 if __name__ == '__main__':
-#    test_gen_model_get_kws_knwbase()
+    test_gen_model_get_kws_knwbase()
 #    test_gen_model()
 #    test_load_knw_base()
 #    test_load_model()
-    test_classify()
+#    test_classify()
 #    testPuncReplace()
-#    test_function()
 #    test_prior_rules()

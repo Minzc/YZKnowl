@@ -9,6 +9,8 @@ import nltk
 import operator
 import sys
 import re
+import prior_rules
+import feature_senti_ruler
 
 STOP_DIC = 'stopwords.txt'
 LESS_THAN_THREE_WORDS = 1
@@ -18,7 +20,7 @@ LESS_THAN_FOUR_PHRASE = 5
 MORE_THAN_FOUR_PHRASE = 6
 LESS_THAN_ONE_SENT = 7
 MORE_THAN_ONE_SENT = 8
-PRERIOR = 9
+PRIOR = 9
 POSTERIOR = 10
 
 APLHI = 0.5
@@ -36,22 +38,20 @@ class Seg_token:
     def __init__(self,word,flag):
         self.word = word
         self.flag = flag
-"""Load knowledge base to memory
-:Return entity_class    : entity -> classes. Value is a list
-:Return synonym         : instance -> entity.
-:Return sent_dic        : sentiment dictionary
-"""
+
 def load_knw_base():
+    """Load knowledge base to memory
+    :Return entity_class    : entity -> classes. Value is a list
+    :Return synonym         : instance -> entity.
+    :Return sent_dic        : sentiment dictionary
+    """
     lns = [ln.decode('utf-8').strip().lower() for ln in open(KNWB_PATH).readlines()]
-    # indx: entity
-    # value: class
+    # indx -> entity , value -> class
     entity_class = {}
-    # indx: entity
-    # value: instance
+    # indx -> entity , value -> instance
     synonym = {}
     # sentiment
-    # indx: instance
-    # value: entity
+    # indx -> instance value -> entity
     sent_dic = set()
     for ln in lns:
         if ln.startswith('#') or len(ln) ==0:
@@ -72,15 +72,15 @@ def load_knw_base():
                 synonym[instance] = entity
     return entity_class,synonym,sent_dic
 
-"""Given training data set, generate Model file
-:Param infile   : training data file path
-:Param obj_name : object name
-"""
 def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
+    """Given training data set, generate Model file
+    :Param infile   : training data file path
+    :Param obj_name : object name
+    """
     entity_class,synonym,senti_dic = load_knw_base()
     tmp_lns,lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()],[]
     for tmp_ln in tmp_lns:
-        lns += prior_rules(tmp_ln)
+        lns += prior_rules.prior_rules(tmp_ln)
 
     kw_pair_wd_dis,kw_pair_snt_dis,kw_pair_phrs_dis,kw_pair_rltv_dis = {},{},{},{}
     kw_distr = nltk.FreqDist()
@@ -111,7 +111,7 @@ def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
                 kw_pair_phrs_dis[kw_pair].inc(phrase_dis_type)
 
                 # relative position
-                kw_pair_rltv_dis.setdefault(kw_pair,MyLib.create_and_init_frqdis(PRERIOR,POSTERIOR))
+                kw_pair_rltv_dis.setdefault(kw_pair,MyLib.create_and_init_frqdis(PRIOR,POSTERIOR))
                 kw_pair_rltv_dis[kw_pair].inc(relative_pos)
 
     print '#WD_PAIR_DISTR'
@@ -208,16 +208,17 @@ def generate_segment_lst_know(ln,synonym,obj_name):
             pre_phrases_len += len(phrases)
             phrase_position += 1
     return kws,obj_poss
-"""Give two keywords, generate features between the given words
-:Param kw1  : keyword one
-:Param kw1  : keyword two
-:Returns wd_dis_type        : distance type in word level
-:Returns snt_dis_type       : distance type in phrase level
-:Returns phrase_dis_type    : disatnce type in sentence level
-:Returns relative_pos       : relative position type
-"""
+
 
 def decide_dis_feature_type(kw1,kw2):
+    """Give two keywords, generate features between the given words
+    :Param kw1  : keyword one
+    :Param kw1  : keyword two
+    :Returns wd_dis_type        : distance type in word level
+    :Returns snt_dis_type       : distance type in phrase level
+    :Returns phrase_dis_type    : disatnce type in sentence level
+    :Returns relative_pos       : relative position type
+    """
     # absolute word distance
     word_distance = kw1.wrd_strt_pos - kw2.wrd_end_pos
     if word_distance < 0:
@@ -226,7 +227,7 @@ def decide_dis_feature_type(kw1,kw2):
     wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos = MORE_THAN_THREE_WORDS,\
                                                MORE_THAN_ONE_SENT,\
                                                MORE_THAN_FOUR_PHRASE,\
-                                               PRERIOR
+                                               PRIOR
     # Sentence Distance Feature
     if abs(kw1.sntnc-kw2.sntnc) < 2:
         snt_dis_type = LESS_THAN_ONE_SENT
@@ -306,10 +307,20 @@ def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
             snt_lkhd = snt_lkhd * pair_distr.get(feature_senti_pair,1) / total_pair_occur
             if DEBUG:
                 print 'Sentiment Final Score:',feature_senti_pair,snt_lkhd,pair_distr.get(feature_senti_pair,1)
+
+            # Filter compelled association
+            if not feature_senti_ruler.absDis(feature,kw):
+                continue
+
             if snt_lkhd > max_likelihood or \
                (snt_lkhd == max_likelihood and wd_dis_type < prv_dis_type):
                 best_fit_senti = kw.token.word
                 max_likelihood = snt_lkhd
+
+            # Filter direct association
+            if feature_senti_ruler.absPos(kw,feature):
+                return kw.token.word
+
 
     return best_fit_senti
 
@@ -330,7 +341,7 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
     # Classify Test Data
     for ln in lns:
         can_rst = {}
-        for ln_after_pr_rule in prior_rules(ln,replace_punc=False):
+        for ln_after_pr_rule in prior_rules.prior_rules(ln,replace_punc=True):
             # Generate word segments list
             kws,obj_poss = generate_segment_lst_know(ln_after_pr_rule,synonym,obj_name)
             if DEBUG:
@@ -361,14 +372,11 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
                     best_fit_senti = ''
                 can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
-        print_rst(can_rst,ln,True)
+        print_rst(can_rst,ln,all_rst=False)
 
-def prior_rules(ln,replace_punc = True):
-    if replace_punc:
-        ln = punc_replace(ln)
-    if ('1.' in ln and '2.' in ln) or ('1,' in ln and '2,' in ln):
-        return filter(lambda x : x != '', re.split(r'\d+[.,]',ln))
-    return [ln]
+
+
+
 # convert chines punctuation to english punctuation
 # 1. period
 # 2. exclaim
