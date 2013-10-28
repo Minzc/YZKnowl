@@ -78,11 +78,16 @@ def load_knw_base():
 """
 def gen_model(infile='train.txt', obj_name = u'伊利谷粒多'):
     entity_class,synonym,senti_dic = load_knw_base()
-    lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
+    tmp_lns,lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()],[]
+    for tmp_ln in tmp_lns:
+        lns += prior_rules(tmp_ln)
+
     kw_pair_wd_dis,kw_pair_snt_dis,kw_pair_phrs_dis,kw_pair_rltv_dis = {},{},{},{}
     kw_distr = nltk.FreqDist()
 
     for ln in lns:
+        if DEBUG:
+            print 'Gen_Model',ln.encode('utf-8')
         kws,obj_poss = generate_segment_lst_know(ln,synonym,obj_name)
         # Start Statistic
         for kw1 in kws:
@@ -177,13 +182,13 @@ def load_mdl(infile = 'snti_mdl.txt'):
 def generate_segment_lst_know(ln,synonym,obj_name):
     know_dic = set(synonym.keys())
     know_dic.add(obj_name)
-    sub_sents = filter(lambda x: x != '',re.split(ur"[!.?…~]",punc_replace(ln)))
+    sub_sents = filter(lambda x: x != '',re.split(ur"[!.?…~;]",punc_replace(ln)))
     kws,obj_poss = [],[]
     pre_phrases_len = 0
     phrase_position = 0
     for sub_sent_index in range(len(sub_sents)):
         if DEBUG:
-            print sub_sents[sub_sent_index]
+            print sub_sents[sub_sent_index].encode('utf-8')
         for phrases in kw_util.tweet_filter(sub_sents[sub_sent_index]).strip().split(' '):
             if len(phrases) < 1:
                 continue
@@ -289,7 +294,6 @@ def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
     max_likelihood = -1
     best_fit_senti = ''
     prv_dis_type = MORE_THAN_ONE_SENT
-    # TODO: need test
     pair_distr = pair_dis_argvs[-1]
     for kw in kws:
         if feature == kw or kw.token.flag == 'obj':
@@ -309,6 +313,7 @@ def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
 
     return best_fit_senti
 
+
 def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 'model.txt',):
     # Load Model
     kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr \
@@ -324,49 +329,53 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
     total_pair_occur = sum(pair_distr.values())
     # Classify Test Data
     for ln in lns:
-        # Generate word segments list
-        kws,obj_poss = generate_segment_lst_know(ln,synonym,obj_name)
-
         can_rst = {}
-        if DEBUG:
-            MyLib.print_seg(kws)
-            print obj_poss
-        for feature in kws:
-            if feature.token.word == obj_name:
+        for ln_after_pr_rule in prior_rules(ln,replace_punc=False):
+            # Generate word segments list
+            kws,obj_poss = generate_segment_lst_know(ln_after_pr_rule,synonym,obj_name)
+            if DEBUG:
+                MyLib.print_seg(kws)
+                print obj_poss
+            if len(obj_poss) == 0:
                 continue
-            # Cal the probability of the distance between the keyword and the object
-            max_likelihood = -1
-            obj_feature_pair = obj_name + '$' + feature.token.word
-            for obj_pos in obj_poss:
-                # First compare <obj,keyword> pair
-                likelihood,wd_dis_type = cal_likelihood(feature,obj_pos,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
-                if likelihood > max_likelihood:
-                    max_likelihood = likelihood
 
-            best_fit_senti = select_sentiment_word(kws,sent_dic,feature,total_pair_occur,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
-            if feature.token.word in sent_dic:
-                best_fit_senti = feature.token.word
+            for feature in kws:
+                if feature.token.word == obj_name:
+                    continue
+                # Cal the probability of the distance between the keyword and the object
+                max_likelihood = -1
+                obj_feature_pair = obj_name + '$' + feature.token.word
+                for obj_pos in obj_poss:
+                    # First compare <obj,keyword> pair
+                    likelihood,wd_dis_type = cal_likelihood(feature,obj_pos,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
+                    if likelihood > max_likelihood:
+                        max_likelihood = likelihood
 
-            likelihood = max_likelihood * pair_distr.get(obj_feature_pair,1) / total_pair_occur
-            if feature.token.word in entity_class.keys():
-                likelihood += 1
-            else:
-                best_fit_senti = ''
-            can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
+                best_fit_senti = select_sentiment_word(kws,sent_dic,feature,total_pair_occur,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
+                if feature.token.word in sent_dic:
+                    best_fit_senti = feature.token.word
+                if DEBUG:
+                    print 'Pair Distribution:',pair_distr.get(obj_feature_pair,1) / total_pair_occur
+                likelihood = max_likelihood * pair_distr.get(obj_feature_pair,1) / total_pair_occur
+                if feature.token.word not in entity_class.keys():
+                    best_fit_senti = ''
+                can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
-        # TODO
-        if len(can_rst) != 0 and can_rst[0][0].split('$')[1] != '':
-            print ln.encode('utf-8').strip()
-            for k,v in can_rst:
-                print '('+k.encode('utf-8')+','+str(v).encode('utf-8')+')',
-            print '\n'
+        print_rst(can_rst,ln,True)
 
+def prior_rules(ln,replace_punc = True):
+    if replace_punc:
+        ln = punc_replace(ln)
+    if ('1.' in ln and '2.' in ln) or ('1,' in ln and '2,' in ln):
+        return filter(lambda x : x != '', re.split(r'\d+[.,]',ln))
+    return [ln]
 # convert chines punctuation to english punctuation
 # 1. period
 # 2. exclaim
 #
 def punc_replace(ln):
     ln = re.sub(ur"。",'.',ln)
+    ln = re.sub(ur"；",';',ln)
     ln = re.sub(ur'！','!',ln)
     ln = re.sub(ur'？','?',ln)
     ln = re.sub(ur'，',',',ln)
@@ -386,6 +395,12 @@ def train_data_clean(infile):
             clean_lns[tmp_ln] = ln
     for ln in clean_lns.values():
         print ln
+def print_rst(can_rst,ln,all_rst=False):
+    if all_rst or len(can_rst) != 0 and can_rst[0][0].split('$')[1] != '':
+        print ln.encode('utf-8').strip()
+        for k,v in can_rst:
+            print '('+k.encode('utf-8')+','+str(v).encode('utf-8')+')',
+        print '\n'
 
 def seg_files(infile='test_data.txt', obj_name = '伊利谷粒多', usrdic_file = 'new_words.txt'):
     jieba.load_userdict(usrdic_file)
