@@ -9,7 +9,6 @@ import nltk
 import operator
 import sys
 import re
-import math
 
 STOP_DIC = 'stopwords.txt'
 LESS_THAN_THREE_WORDS = 1
@@ -238,12 +237,14 @@ def decide_dis_feature_type(kw1,kw2):
         relative_pos = POSTERIOR
     return wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos
 
-def cal_likelihood(kw,feature,total_pair_occur,*pair_dis_argvs):
+def cal_likelihood(kw,feature,*pair_dis_argvs):
+
     kw_pair_wd_dis,\
     kw_pair_phrs_dis,\
     kw_pair_snt_dis,\
     kw_pair_rltv_pos_dis,\
     pair_distr = pair_dis_argvs
+
     snt_lkhd = 1
     wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos\
     = decide_dis_feature_type(kw,feature)
@@ -277,10 +278,13 @@ def cal_likelihood(kw,feature,total_pair_occur,*pair_dis_argvs):
     if kw_pair_rltv_pos_dis.has_key(feature_senti_pair):
         snt_lkhd *= kw_pair_rltv_pos_dis[feature_senti_pair][relative_pos]\
                     / sum(kw_pair_rltv_pos_dis[feature_senti_pair].values())
+    else:
+        snt_lkhd *= 0.5
 
     return snt_lkhd,wd_dis_type
 
 def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
+    kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_pos_dis,pair_distr = pair_dis_argvs
     # For each keyword, go through all words in the sub-sentence to mine best sentiment keywords
     max_likelihood = -1
     best_fit_senti = ''
@@ -293,7 +297,7 @@ def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
         # Only classify words in sentiment dictionary or adjective
         if kw.token.word in snt_dic:
             feature_senti_pair = feature.token.word + '$' + kw.token.word
-            snt_lkhd,wd_dis_type = cal_likelihood(kw,feature,pair_dis_argvs)
+            snt_lkhd,wd_dis_type = cal_likelihood(kw,feature,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_pos_dis,pair_distr)
             # P(kw-sentiment)
             snt_lkhd = snt_lkhd * pair_distr.get(feature_senti_pair,1) / total_pair_occur
             if DEBUG:
@@ -309,6 +313,7 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
     # Load Model
     kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr \
     = load_mdl(model_name)
+
     entity_class,synonym,sent_dic = load_knw_base()
     total_pair_occur = 0
     for pair,dist in kw_pair_snt_dis.items():
@@ -333,49 +338,15 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
             max_likelihood = -1
             obj_feature_pair = obj_name + '$' + feature.token.word
             for obj_pos in obj_poss:
-                likelihood = 1
-                # Distance Feature
-                wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos\
-                = decide_dis_feature_type(obj_pos,feature)
-
                 # First compare <obj,keyword> pair
-                # If the word pair didn't not exist in training data set, Compare <obj,flag> pair
-                # if the <obj,flag> didn't exist in train data set, assign an equal value to each type
-                # P(c=dis|obj-kw)
-                # TODO: extract function
-                # Word Distance Diff
-                if kw_pair_wd_dis.has_key(obj_feature_pair):
-                    likelihood *= kw_pair_wd_dis[obj_feature_pair][wd_dis_type] \
-                                  / sum(kw_pair_wd_dis[obj_feature_pair].values())
-                else:
-                    likelihood *= 0.5
-
-                if DEBUG:
-                    print 'Wb Dist Feature:',feature.token.word,likelihood,wd_dis_type
-
-                # Sentence Distance Diff
-                if kw_pair_snt_dis.has_key(obj_feature_pair):
-                    likelihood *= kw_pair_snt_dis[obj_feature_pair][snt_dis_type] \
-                                  / sum(kw_pair_snt_dis[obj_feature_pair].values())
-                else:
-                    likelihood *= 0.5
-                if DEBUG:
-                      print 'Snt Dist Feature:',feature.token.word,likelihood,snt_dis_type
-
-                # Phrase Distance Diff
-                if kw_pair_phrs_dis.has_key(obj_feature_pair):
-                    likelihood *= kw_pair_phrs_dis[obj_feature_pair][phrase_dis_type]\
-                                  / sum(kw_pair_phrs_dis[obj_feature_pair].values())
-                else:
-                    likelihood *= 0.5
-                if DEBUG:
-                    print 'Phrs Dist Feature:',feature.token.word,likelihood,phrase_dis_type
-                # TODO: add relative postion feature
-
+                likelihood,wd_dis_type = cal_likelihood(feature,obj_pos,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
                 if likelihood > max_likelihood:
                     max_likelihood = likelihood
 
-            best_fit_senti = select_sentiment_word(kws,sent_dic,feature,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,pair_distr,total_pair_occur)
+            best_fit_senti = select_sentiment_word(kws,sent_dic,feature,total_pair_occur,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
+            if feature.token.word in sent_dic:
+                best_fit_senti = feature.token.word
+
             likelihood = max_likelihood * pair_distr.get(obj_feature_pair,1) / total_pair_occur
             if feature.token.word in entity_class.keys():
                 likelihood += 1
@@ -383,10 +354,12 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
                 best_fit_senti = ''
             can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
-        print ln.encode('utf-8')
-        for k,v in can_rst:
+        # TODO
+        if len(can_rst) != 0 and can_rst[0][0].split('$')[1] != '':
+            print ln.encode('utf-8').strip()
+            for k,v in can_rst:
                 print '('+k.encode('utf-8')+','+str(v).encode('utf-8')+')',
-        print
+            print '\n'
 
 # convert chines punctuation to english punctuation
 # 1. period

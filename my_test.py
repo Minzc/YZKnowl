@@ -34,9 +34,9 @@ def test_gen_model_get_kws_knwbase():
                     print kw_2.token.word
                     print FreqBase.decide_dis_feature_type(kw,kw_2)
 def test_load_model():
-    kw_pair_wd_dis,kw_pair_snt_dis,kw_distr = FreqBase.load_mdl('model.txt')
-    for pair,dist in kw_distr.items():
-        print pair.encode('utf-8')
+    kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr\
+    = FreqBase.load_mdl('model.txt')
+    print kw_pair_rltv_dis[u'王学圻$酱油']
 
 def test_classify():
     FreqBase.DEBUG = True
@@ -53,9 +53,18 @@ def testPuncReplace():
     ln =  FreqBase.punc_replace(ln.decode('utf-8'))
     print re.sub(r'\(.*?\)','',ln)
     print re.split(ur'[!.?…]',ln)
+def function(*argv):
+    a,\
+    b = argv
+    print a
+    print b
+def test_function():
+    function('a','b')
+
 if __name__ == '__main__':
 #    test_gen_model_get_kws_knwbase()
 #    test_load_knw_base()
 #    test_load_model()
     test_classify()
 #    testPuncReplace()
+#    test_function()
