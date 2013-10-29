@@ -18,6 +18,7 @@ def absDis(feature,senti_wrd):
     :Param senti_wrd: sentiment word
     :Returns        : True if the distance is less than three phrase
     """
-    if abs(feature.phrase - senti_wrd.phrase) > 3:
+    if abs(feature.phrase - senti_wrd.phrase) + \
+       abs(feature.sntnc - senti_wrd.sntnc) > 3:
         return False
     return True

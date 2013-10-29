@@ -182,7 +182,7 @@ def load_mdl(infile = 'snti_mdl.txt'):
 def generate_segment_lst_know(ln,synonym,obj_name):
     know_dic = set(synonym.keys())
     know_dic.add(obj_name)
-    sub_sents = filter(lambda x: x != '',re.split(ur"[!.?…~;]",punc_replace(ln)))
+    sub_sents = filter(lambda x: x != '',re.split(ur"[!.?…~;]",kw_util.punc_replace(ln)))
     kws,obj_poss = [],[]
     pre_phrases_len = 0
     phrase_position = 0
@@ -312,10 +312,11 @@ def select_sentiment_word(kws,snt_dic,feature,total_pair_occur,*pair_dis_argvs):
             if not feature_senti_ruler.absDis(feature,kw):
                 continue
 
-            if snt_lkhd > max_likelihood or \
+            if snt_lkhd-max_likelihood > 10**-5 or \
                (snt_lkhd == max_likelihood and wd_dis_type < prv_dis_type):
                 best_fit_senti = kw.token.word
                 max_likelihood = snt_lkhd
+                prv_dis_type = wd_dis_type
 
             # Filter direct association
             if feature_senti_ruler.absPos(kw,feature):
@@ -361,8 +362,11 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
                     likelihood,wd_dis_type = cal_likelihood(feature,obj_pos,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
                     if likelihood > max_likelihood:
                         max_likelihood = likelihood
-
+                if DEBUG:
+                    print 'Start Selecting Sentiment Word'
                 best_fit_senti = select_sentiment_word(kws,sent_dic,feature,total_pair_occur,kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr)
+                if DEBUG:
+                    print 'Finish Selecting Sentiment Word'
                 if feature.token.word in sent_dic:
                     best_fit_senti = feature.token.word
                 if DEBUG:
@@ -372,7 +376,7 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
                     best_fit_senti = ''
                 can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
-        print_rst(can_rst,ln,all_rst=False)
+        print_rst(can_rst,ln,all_rst=True)
 
 
 
@@ -381,18 +385,7 @@ def class_new(infile='test_data.txt',obj_name = u'伊利谷粒多',model_name = 
 # 1. period
 # 2. exclaim
 #
-def punc_replace(ln):
-    ln = re.sub(ur"。",'.',ln)
-    ln = re.sub(ur"；",';',ln)
-    ln = re.sub(ur'！','!',ln)
-    ln = re.sub(ur'？','?',ln)
-    ln = re.sub(ur'，',',',ln)
-    ln = re.sub(ur'（','(',ln)
-    ln = re.sub(ur'）',')',ln)
-    ln = re.sub(u'\.\.',u'…',ln)
-    ln = re.sub(u'～','~',ln)
-    ln = re.sub(r'\(.*?\)','',ln)
-    return ln
+
 
 def train_data_clean(infile):
     lns = [ln.strip() for ln in open(infile).readlines()]

@@ -75,6 +75,20 @@ def tweet_filter( tweet ):
     tweet = regex_enpunc.sub( " ", tweet)
     return re.sub(r"\s+", " ", tweet)
 
+def punc_replace(ln):
+    ln = re.sub(ur"。",'.',ln)
+    ln = re.sub(ur"；",';',ln)
+    ln = re.sub(ur'！','!',ln)
+    ln = re.sub(ur'？','?',ln)
+    ln = re.sub(ur'，',',',ln)
+    ln = re.sub(ur'（','(',ln)
+    ln = re.sub(ur'）',')',ln)
+    ln = re.sub(u'\.\.',u'…',ln)
+    ln = re.sub(u'～','~',ln)
+    ln = re.sub(u'、',',',ln)
+    ln = re.sub(r'\(.*?\)','',ln)
+    return ln
+
 def extract_tags( sentence, tag, minlen=2, topK=20 ):
     """Extract words with specified pos tags from a sentence"""
     words = pseg.cut(sentence)

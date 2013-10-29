@@ -59,10 +59,10 @@ def test_prior_rules():
 
 
 if __name__ == '__main__':
-    test_gen_model_get_kws_knwbase()
+#    test_gen_model_get_kws_knwbase()
 #    test_gen_model()
 #    test_load_knw_base()
 #    test_load_model()
-#    test_classify()
+    test_classify()
 #    testPuncReplace()
 #    test_prior_rules()
