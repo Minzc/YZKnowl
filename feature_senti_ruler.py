@@ -9,7 +9,7 @@ def absPos(senti_wrd,feature):
     :Param feature  : feature
     :Returns        : True if the '[sentiment]的[feature]' form exists in the message
     """
-    if feature.wrd_strt_pos - senti_wrd.wrd_end_pos == 1:
+    if abs(feature.wrd_strt_pos - senti_wrd.wrd_end_pos) < 2:
         return True
     return False
 def absDis(feature,senti_wrd):

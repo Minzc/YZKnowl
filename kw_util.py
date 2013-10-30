@@ -83,9 +83,12 @@ def punc_replace(ln):
     ln = re.sub(ur'，',',',ln)
     ln = re.sub(ur'（','(',ln)
     ln = re.sub(ur'）',')',ln)
+    ln = regex_url.sub(" ", ln)
     ln = re.sub(u'\.\.',u'…',ln)
     ln = re.sub(u'～','~',ln)
     ln = re.sub(u'、',',',ln)
+    ln = re.sub(u'“','"',ln)
+    ln = re.sub(u'”','"',ln)
     ln = re.sub(r'\(.*?\)','',ln)
     return ln
 
@@ -137,7 +140,6 @@ def gen_hot_mentions( infile, n=10):
             mndist.inc(w)
     print_topk(mndist,n)
 
-
 def gen_hot_topic( infile, n=10):
     """Generate hot topics ( sorted by frequency ) """
     lines = [ ln.strip() for ln in open(infile).readlines() ]
@@ -173,6 +175,8 @@ def gen_hot_emoji( infile, n=10 ):
     for ln in lines:
         for w in re.findall(r"\[.+?\]", ln): icondist.inc(w)
     print_topk(icondist,n)
+
+
 
 def gen_key_elems( infile, cdictfile, sdictfile ):
     """

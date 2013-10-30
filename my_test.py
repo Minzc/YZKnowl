@@ -4,6 +4,7 @@ from __future__ import division
 __author__ = 'congzicun'
 import re
 import FreqBase
+import kw_util
 STOP_DIC = 'stopwords.txt'
 lns = [ln.decode('utf-8').lower() for ln in open('testCodeCrrct.txt').readlines()]
 
@@ -45,18 +46,14 @@ def format_know_base():
         ln_seg = ln.split('\t')
         print ln_seg[0].strip().encode('utf-8')+'\t'+ln_seg[1].strip().encode('utf-8')+'\t'+ln_seg[2].strip().encode('utf-8')
 def testPuncReplace():
-    ln = 'good！a！b。c，d？e（f）)k)g。。h～g；h'
-    ln =  FreqBase.punc_replace(ln.decode('utf-8'))
+    ln = 'good！a！b。c，d？e（f）)k)g。。h～g；h“j”i'
+    ln =  kw_util.punc_replace(ln.decode('utf-8'))
     print re.sub(r'\(.*?\)','',ln)
-    print re.split(ur'[!.?…;]',ln)
+    print re.split(ur'[!.?…;"]',ln)
 
-def test_prior_rules():
-    lns_after_pr_rl = []
+def testTweetFilter():
     for ln in lns:
-        lns_after_pr_rl += FreqBase.prior_rules(ln)
-    for ln in lns_after_pr_rl:
-        print ln
-
+        print kw_util.tweet_filter(ln)
 
 if __name__ == '__main__':
 #    test_gen_model_get_kws_knwbase()
@@ -65,4 +62,4 @@ if __name__ == '__main__':
 #    test_load_model()
     test_classify()
 #    testPuncReplace()
-#    test_prior_rules()
+#    testTweetFilter()
