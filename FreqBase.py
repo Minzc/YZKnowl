@@ -360,44 +360,25 @@ def select_sentiment_word_new(feature_list,sentiment_list,total_pair_occur,obj_p
     : Param total_pair_occur : total number of pairs
     : Return rst_fs_pair     : map object. Key -> feature word ; Value -> (feature_object, sentiment_object)
     """
-    possible_pairs = [(f,s) for f in feature_list for s in sentiment_list if not feature_senti_ruler.obj_feature_close(obj_poss,f)]
-    fs_pair_likelihood, fs_pair_wd_dis_type = {}, {}
+    possible_pairs = [(f,s) for f in feature_list for s in sentiment_list if feature_senti_ruler.obj_feature_close(obj_poss,f)]
+    fs_pair = []
     for possible_pair in possible_pairs:
-        feature_sent_pair = possible_pair[0].token.word + '$' + possible_pair[1].token.word
         likelihood,wd_dis_type = cal_feature_sent_score(possible_pair[0],possible_pair[1],total_pair_occur)
-        if fs_pair_likelihood.get(feature_sent_pair,-1) < likelihood:
-            fs_pair_likelihood[feature_sent_pair] = likelihood
-        if fs_pair_wd_dis_type.get(feature_sent_pair,MORE_THAN_THREE_WORDS) >= wd_dis_type:
-            fs_pair_wd_dis_type[feature_sent_pair] = wd_dis_type
+        fs_pair.append((likelihood,MORE_THAN_THREE_WORDS - wd_dis_type,possible_pair[0].token.word,possible_pair[1].token.word))
 
-    sorted_fs_pair = sorted(fs_pair_likelihood.items(), key=operator.itemgetter(1),reverse = True)
+    # (likelihood,reversed_word_distance,feature,sentiment)
+    sorted_fs_pair = sorted(fs_pair, key=operator.itemgetter(0,1),reverse = True)
     # key -> feature, value -> (Feature_Obj,Senti_Obj)
     rst_fs_pair = {}
-    used_sentiment = set()
-    prv_score = -1
-    print '######################'
-    for feature_sent_pair,pair_score in sorted_fs_pair:
-        print feature_sent_pair,pair_score
-        wd_dis_type = fs_pair_wd_dis_type[feature_sent_pair]
-        add_pair = False
-        feature_word,senti_word = feature_sent_pair.split('$')
-        # 1. feature has not occurred before
-        if not rst_fs_pair.has_key(feature_word):
-            if senti_word not in used_sentiment:
-                add_pair = True
-        # 2. two pairs have the same score, select the nearest
-        elif pair_score == prv_score:
-            prv_pair = rst_fs_pair[feature_word]
-            prv_dis_type = fs_pair_wd_dis_type[prv_pair[0]+'$'+prv_pair[1]]
-            if prv_dis_type > wd_dis_type:
-                used_sentiment.remove(prv_pair[1])
-                add_pair = True
-        print 'add_pair',add_pair
-        if add_pair:
-            rst_fs_pair[feature_word] = (feature_word,senti_word)
-            used_sentiment.add(senti_word)
-        prv_score = pair_score
-    print '###############'
+    used_sentiment,used_feature = set(),set()
+    print '#' * 20
+    for likelihood,pair_score,feature,sentiment in sorted_fs_pair:
+        print likelihood,pair_score,feature,sentiment
+        if feature not in used_feature and sentiment not in used_sentiment and likelihood != -1:
+            rst_fs_pair[feature] = (sentiment,pair_score)
+            used_sentiment.add(sentiment)
+            used_feature.add(feature)
+    print '#' * 20
     return rst_fs_pair
 
 
@@ -463,7 +444,12 @@ def class_new(infile=TEST_FILE_PAHT,obj_name = OBJ_NAME,model_name = MODEL_FILE_
                     can_rst[kw.token.word] = likelihood
 
 
-            tmp_pairs = select_sentiment_word_new(feature_list,sentiment_list,total_pair_occur)
+            tmp_pairs = select_sentiment_word_new(feature_list,sentiment_list,total_pair_occur,obj_poss)
+            # Combine Results
+            for key,senti_value in tmp_pairs.items():
+                if feature_sent_pairs.has_key(key) and feature_sent_pairs[key][1] > senti_value[1]:
+                    continue
+                feature_sent_pairs[key] = senti_value
             feature_sent_pairs = dict(list(feature_sent_pairs.items())+list(tmp_pairs.items()))
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
         print_rst(can_rst,feature_sent_pairs,ln,False)
@@ -500,7 +486,7 @@ def print_rst(can_rst,feature_sent_pairs,ln,all_rst=False):
         print ln.strip().encode('utf-8')
         for k,v in can_rst:
             if feature_sent_pairs.has_key(k):
-                print '(',k.encode('utf-8'),feature_sent_pairs[k][1].encode('utf-8'),')',
+                print '(',k.encode('utf-8'),feature_sent_pairs[k][0].encode('utf-8'),')',
         print '\n'
 
 def seg_files(infile=TEST_FILE_PAHT, obj_name = OBJ_NAME, usrdic_file = 'new_words.txt'):

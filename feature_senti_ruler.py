@@ -45,7 +45,7 @@ def obj_feature_close(obj_poss,feature):
     threashold = 4
     for obj_pos in obj_poss:
         tmp_dis = abs(obj_pos.phrase - feature.phrase)
-        if tmp_dis > smallest_dis:
+        if tmp_dis < smallest_dis:
             smallest_dis = tmp_dis
     if smallest_dis > threashold:
         return False
