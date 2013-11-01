@@ -31,13 +31,13 @@ def test_gen_model_get_kws_knwbase():
                     print kw_2.token.word
                     print FreqBase.decide_dis_feature_type(kw,kw_2)
 def test_load_model():
-    kw_pair_wd_dis,kw_pair_phrs_dis,kw_pair_snt_dis,kw_pair_rltv_dis,pair_distr\
-    = FreqBase.load_mdl('model.txt')
-    print kw_pair_rltv_dis[u'王学圻$酱油']
+    FreqBase.load_mdl('model.txt')
+
 
 def test_classify():
     FreqBase.DEBUG = True
-    FreqBase.class_new('testCodeCrrct.txt')
+    FreqBase.OBJ_NAME = u'伊利谷粒多'
+    FreqBase.class_new('testCodeCrrct.txt',u'伊利谷粒多','model.txt')
 
 def format_know_base():
     lns = [ln.decode('utf-8').strip().lower()

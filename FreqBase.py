@@ -12,7 +12,7 @@ import re
 import prior_rules
 import feature_senti_ruler
 
-STOP_DIC              = 'stopwords.txt'
+
 LESS_THAN_THREE_WORDS = 1
 MORE_THAN_THREE_WORDS = 2
 LESS_THAN_TWO_PHRASE  = 3
@@ -26,6 +26,7 @@ POSTERIOR             = 10
 APLHI = 0.5
 DEBUG = False
 
+STOP_DIC         = 'stopwords.txt'
 KNWB_PATH        = 'knowl-base.txt'
 FILE_PREFIX      = 'yinlu'
 TRAIN_FILE_PAHT  = FILE_PREFIX + '_train_data.txt'
@@ -33,6 +34,7 @@ TEST_FILE_PAHT   = FILE_PREFIX + '_test_data.txt'
 MODEL_FILE_PATH  = FILE_PREFIX + '_model.txt'
 OBJ_NAME         = u'银鹭花生牛奶'
 
+SENTI_AMBI       = {}
 KW_PAIR_WD_DIS   = {}
 KW_PAIR_SNT_DIS  = {}
 KW_PAIR_PHRS_DIS = {}
@@ -84,18 +86,33 @@ def load_knw_base():
                 synonym[instance] = entity
     return entity_class,synonym,sent_dic
 
+def if_ambiguity(kw1,kw2,senti_dic):
+    """Judge if kw1 is an ambiguous word
+    : Param kw1       : keyword to be judged
+    : Param kw2       : accompanied keyword
+    : Param senti_dic : sentiment dictionary
+    : Returns         : True if kw1 is not ambiguous
+    """
+    if kw1.phrase == kw2.phrase \
+       and kw2.token.word in senti_dic \
+       and kw1.token.word in senti_dic \
+       and kw1.token.word != kw2.token.word:
+        return False
+    return True
+
 def gen_model(infile=TRAIN_FILE_PAHT, obj_name = OBJ_NAME):
     """Given training data set, generate Model file
-    :Param infile   : training data file path
-    :Param obj_name : object name
+    : Param infile   : training data file path
+    : Param obj_name : object name
     """
     entity_class,synonym,senti_dic = load_knw_base()
     tmp_lns,lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()],[]
+    sentiment_ambi = nltk.FreqDist()
+    sentiment_occr = nltk.FreqDist()
+
+    # Format lns by prior rules
     for tmp_ln in tmp_lns:
         lns += prior_rules.prior_rules(tmp_ln)
-
-
-
 
     for ln in lns:
         if DEBUG:
@@ -103,9 +120,15 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name = OBJ_NAME):
         kws,obj_poss = generate_segment_lst_know(ln,synonym,obj_name)
         # Start Statistic
         for kw1 in kws:
+
+            not_ambiguity = True
+            sentiment_occr.inc(kw1.token.word)
+
             for kw2 in kws:
                 if kw1 == kw2:
                     continue
+                not_ambiguity &= if_ambiguity(kw1,kw2,senti_dic)
+
                 kw_pair = kw1.token.word+'$'+kw2.token.word
                 KW_DISTR.inc(kw_pair)
                 wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos \
@@ -125,6 +148,8 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name = OBJ_NAME):
                 # relative position
                 KW_PAIR_RLTV_DIS.setdefault(kw_pair,MyLib.create_and_init_frqdis(PRIOR,POSTERIOR))
                 KW_PAIR_RLTV_DIS[kw_pair].inc(relative_pos)
+            if not_ambiguity:
+                sentiment_ambi.inc(kw1.token.word)
 
     print '#WD_PAIR_DISTR'
     for kw_pair,wd_dises in KW_PAIR_WD_DIS.items():
@@ -145,6 +170,9 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name = OBJ_NAME):
     print '#WD_DIST'
     for kw,count in KW_DISTR.items():
         print kw.encode('utf-8')+'$'+str(count+1)
+    print '#AMBI_DIST'
+    for kw,count in sentiment_occr.items():
+        print kw.encode('utf-8')+'$'+str(sentiment_ambi.get(kw,0)+1)+'$'+str(count+1)
 
 
 def load_mdl(infile = MODEL_FILE_PATH):
@@ -166,6 +194,9 @@ def load_mdl(infile = MODEL_FILE_PATH):
         elif ln == '#RLTV_POS_DISTR'.lower():
             feature_type = 4
             continue
+        elif ln == '#AMBI_DIST'.lower():
+            feature_type = 5
+            continue
 
         if feature_type == 0:
             kw1,kw2,type,value = ln.strip().split('$')
@@ -186,6 +217,9 @@ def load_mdl(infile = MODEL_FILE_PATH):
             kw1,kw2,type,value = ln.strip().split('$')
             KW_PAIR_RLTV_DIS.setdefault(kw1+'$'+kw2,nltk.FreqDist())
             KW_PAIR_RLTV_DIS[kw1+'$'+kw2].inc(int(type),int(value))
+        elif feature_type == 5:
+            sent_kw,not_amb_doc,total_doc = ln.strip().split('$')
+            SENTI_AMBI[sent_kw] = int(not_amb_doc) / int(total_doc)
 
 def generate_segment_lst_know(ln,synonym,obj_name):
     know_dic = set(synonym.keys())
@@ -220,12 +254,12 @@ def generate_segment_lst_know(ln,synonym,obj_name):
 
 def decide_dis_feature_type(kw1,kw2):
     """Give two keywords, generate features between the given words
-    :Param kw1  : keyword one
-    :Param kw1  : keyword two
-    :Returns wd_dis_type        : distance type in word level
-    :Returns snt_dis_type       : distance type in phrase level
-    :Returns phrase_dis_type    : disatnce type in sentence level
-    :Returns relative_pos       : relative position type
+    : Param kw1               : keyword one
+    : Param kw1               : keyword two
+    : Returns wd_dis_type     : distance type in word level
+    : Returns snt_dis_type    : distance type in phrase level
+    : Returns phrase_dis_type : disatnce type in sentence level
+    : Returns relative_pos    : relative position type
     """
     # absolute word distance
     word_distance = kw1.wrd_strt_pos - kw2.wrd_end_pos
@@ -290,42 +324,90 @@ def cal_likelihood(kw,feature):
 
     return snt_lkhd,wd_dis_type
 
-def select_sentiment_word(kws,snt_dic,feature,total_pair_occur):
-    # For each keyword, go through all words in the sub-sentence to mine best sentiment keywords
-    max_likelihood = -1
-    best_fit_senti = ''
-    prv_dis_type = MORE_THAN_ONE_SENT
-    for kw in kws:
-        if feature == kw or kw.token.flag == 'obj':
-            continue
-        # Only classify words in sentiment dictionary or adjective
-        if kw.token.word in snt_dic:
-            feature_senti_pair = feature.token.word + '$' + kw.token.word
-            snt_lkhd,wd_dis_type = cal_likelihood(kw,feature)
-            # P(kw-sentiment)
-            snt_lkhd = snt_lkhd * KW_DISTR.get(feature_senti_pair,1) / total_pair_occur
-            if DEBUG:
-                print 'Sentiment Final Score:',feature_senti_pair,snt_lkhd,KW_DISTR.get(feature_senti_pair,1)
+def cal_feature_sent_score(feature,sentiment,total_pair_occur):
+    """Calculate the approved probability of the association of given feature and sentiment
+    : Param feature          : feature object
+    : Param sentiment        : sentiment object
+    : Param total_pair_occur : total pairs occurred in the training data set
+    : Returns snt_lkhd       : the likelihood of the association
+    : Returns wd_dis_type    : the type of word distance between feature and sentiment
+    """
+    feature_senti_pair = feature.token.word + '$' + sentiment.token.word
+    snt_lkhd,wd_dis_type = cal_likelihood(sentiment,feature)
+    # P(kw-sentiment)
+    snt_lkhd = snt_lkhd * KW_DISTR.get(feature_senti_pair,1) / total_pair_occur
+    # P{amb}
+    snt_lkhd = snt_lkhd * SENTI_AMBI.get(sentiment.token.word,1)
+    if DEBUG:
+        print sentiment.token.word,SENTI_AMBI.get(sentiment.token.word,1)
+        print 'Sentiment Final Score:',feature_senti_pair,snt_lkhd,KW_DISTR.get(feature_senti_pair,1)
+        print feature_senti_ruler.abs_dis(feature,sentiment)
 
-            # Filter compelled association
-            if not feature_senti_ruler.absDis(feature,kw):
-                continue
+    # Filter compelled association
+    if not feature_senti_ruler.abs_dis(feature,sentiment):
+        snt_lkhd = -1
+    # Filter direct association
+    if feature_senti_ruler.abs_pos(sentiment,feature):
+        return 1,LESS_THAN_THREE_WORDS
 
-            if snt_lkhd-max_likelihood > 10**-5 or \
-               (snt_lkhd == max_likelihood and wd_dis_type < prv_dis_type):
-                best_fit_senti = kw.token.word
-                max_likelihood = snt_lkhd
-                prv_dis_type = wd_dis_type
-
-            # Filter direct association
-            if feature_senti_ruler.absPos(kw,feature):
-                return kw.token.word
+    return snt_lkhd,wd_dis_type
 
 
-    return best_fit_senti
+def select_sentiment_word_new(feature_list,sentiment_list,total_pair_occur,obj_poss):
+    """Associate feature with best fit sentiment
+    : Param feature_list     : a list of feature object
+    : Param sentiment_list   : a list of sentiment object
+    : Param total_pair_occur : total number of pairs
+    : Return rst_fs_pair     : map object. Key -> feature word ; Value -> (feature_object, sentiment_object)
+    """
+    possible_pairs = [(f,s) for f in feature_list for s in sentiment_list if not feature_senti_ruler.obj_feature_close(obj_poss,f)]
+    fs_pair_likelihood, fs_pair_wd_dis_type = {}, {}
+    for possible_pair in possible_pairs:
+        feature_sent_pair = possible_pair[0].token.word + '$' + possible_pair[1].token.word
+        likelihood,wd_dis_type = cal_feature_sent_score(possible_pair[0],possible_pair[1],total_pair_occur)
+        if fs_pair_likelihood.get(feature_sent_pair,-1) < likelihood:
+            fs_pair_likelihood[feature_sent_pair] = likelihood
+        if fs_pair_wd_dis_type.get(feature_sent_pair,MORE_THAN_THREE_WORDS) >= wd_dis_type:
+            fs_pair_wd_dis_type[feature_sent_pair] = wd_dis_type
+
+    sorted_fs_pair = sorted(fs_pair_likelihood.items(), key=operator.itemgetter(1),reverse = True)
+    # key -> feature, value -> (Feature_Obj,Senti_Obj)
+    rst_fs_pair = {}
+    used_sentiment = set()
+    prv_score = -1
+    print '######################'
+    for feature_sent_pair,pair_score in sorted_fs_pair:
+        print feature_sent_pair,pair_score
+        wd_dis_type = fs_pair_wd_dis_type[feature_sent_pair]
+        add_pair = False
+        feature_word,senti_word = feature_sent_pair.split('$')
+        # 1. feature has not occurred before
+        if not rst_fs_pair.has_key(feature_word):
+            if senti_word not in used_sentiment:
+                add_pair = True
+        # 2. two pairs have the same score, select the nearest
+        elif pair_score == prv_score:
+            prv_pair = rst_fs_pair[feature_word]
+            prv_dis_type = fs_pair_wd_dis_type[prv_pair[0]+'$'+prv_pair[1]]
+            if prv_dis_type > wd_dis_type:
+                used_sentiment.remove(prv_pair[1])
+                add_pair = True
+        print 'add_pair',add_pair
+        if add_pair:
+            rst_fs_pair[feature_word] = (feature_word,senti_word)
+            used_sentiment.add(senti_word)
+        prv_score = pair_score
+    print '###############'
+    return rst_fs_pair
+
 
 
 def class_new(infile=TEST_FILE_PAHT,obj_name = OBJ_NAME,model_name = MODEL_FILE_PATH,):
+    """Classify test data
+    : Param infile     : input file path
+    : Param obj_name   : object name
+    : Param model_name : model path
+    """
     # Load Model
     load_mdl(model_name)
 
@@ -339,48 +421,53 @@ def class_new(infile=TEST_FILE_PAHT,obj_name = OBJ_NAME,model_name = MODEL_FILE_
     total_pair_occur = sum(KW_DISTR.values())
     # Classify Test Data
     for ln in lns:
-        ln = replace_mention([u'@银鹭花生牛奶',u'@林俊杰-银鹭花生牛奶'],OBJ_NAME,ln)
+#        ln = replace_mention([u'@银鹭花生牛奶',u'@林俊杰-银鹭花生牛奶'],OBJ_NAME,ln)
         emoticons = [emoticon for emoticon in re.findall(r"\[.+?\]", ln)]
-        can_rst = {}
+        can_rst,feature_sent_pairs = {},{}
         for ln_after_pr_rule in prior_rules.prior_rules(ln,replace_punc=True):
             # Generate word segments list
             kws,obj_poss = generate_segment_lst_know(ln_after_pr_rule,synonym,obj_name)
             if DEBUG:
                 MyLib.print_seg(kws)
                 print obj_poss
+                for kw in kws:
+                    print kw.token.word,
+                print
             if len(obj_poss) == 0:
                 continue
 
-            for feature in kws:
-                if feature.token.word == obj_name:
+            feature_list = set()
+            sentiment_list = set()
+
+            # Loop over all the candidate keywords,
+            # select sentiment and feature list
+            for kw in kws:
+                if kw.token.word == obj_name:
                     continue
+                if kw.token.word in entity_class:
+                    feature_list.add(kw)
+                if kw.token.word in sent_dic:
+                    sentiment_list.add(kw)
+
                 # Cal the probability of the distance between the keyword and the object
                 max_likelihood = -1
-                obj_feature_pair = obj_name + '$' + feature.token.word
                 for obj_pos in obj_poss:
                     # First compare <obj,keyword> pair
-                    likelihood,wd_dis_type = cal_likelihood(feature,obj_pos)
+                    likelihood,wd_dis_type = cal_likelihood(kw,obj_pos)
                     if likelihood > max_likelihood:
                         max_likelihood = likelihood
-                if DEBUG:
-                    print 'Start Selecting Sentiment Word'
-                best_fit_senti = select_sentiment_word(kws,sent_dic,feature,total_pair_occur)
-                if DEBUG:
-                    print 'Finish Selecting Sentiment Word'
-                if feature.token.word in sent_dic:
-                    best_fit_senti = feature.token.word
-                if DEBUG:
-                    print 'Pair Distribution:',KW_DISTR.get(obj_feature_pair,1) / total_pair_occur
-                likelihood = max_likelihood * KW_DISTR.get(obj_feature_pair,1) / total_pair_occur
 
-                if feature.token.word not in entity_class.keys():
-                    best_fit_senti = ''
-                elif best_fit_senti == '':
-                    best_fit_senti = ','.join(emoticons)
+                likelihood = max_likelihood
 
-                can_rst[feature.token.word+'$'+best_fit_senti] = likelihood
+                if can_rst.get(kw.token.word,0) < likelihood:
+                    can_rst[kw.token.word] = likelihood
+
+
+            tmp_pairs = select_sentiment_word_new(feature_list,sentiment_list,total_pair_occur)
+            feature_sent_pairs = dict(list(feature_sent_pairs.items())+list(tmp_pairs.items()))
         can_rst = sorted(can_rst.items(),key=operator.itemgetter(1),reverse=True)
-        print_rst(can_rst,ln,all_rst=True)
+        print_rst(can_rst,feature_sent_pairs,ln,False)
+
 
 def replace_mention(nick_name_lst,obj_name,ln):
     for nick_name in nick_name_lst:
@@ -405,11 +492,15 @@ def train_data_clean(infile):
             clean_lns[tmp_ln] = ln
     for ln in clean_lns.values():
         print ln
-def print_rst(can_rst,ln,all_rst=False):
-    if all_rst or len(can_rst) != 0 and can_rst[0][0].split('$')[1] != '':
-        print ln.encode('utf-8').strip()
+def print_rst(can_rst,feature_sent_pairs,ln,all_rst=False):
+    has_pair = False
+    if len(feature_sent_pairs) != 0:
+        has_pair = True
+    if all_rst or has_pair:
+        print ln.strip().encode('utf-8')
         for k,v in can_rst:
-            print '('+k.encode('utf-8')+','+str(v).encode('utf-8')+')',
+            if feature_sent_pairs.has_key(k):
+                print '(',k.encode('utf-8'),feature_sent_pairs[k][1].encode('utf-8'),')',
         print '\n'
 
 def seg_files(infile=TEST_FILE_PAHT, obj_name = OBJ_NAME, usrdic_file = 'new_words.txt'):
@@ -452,7 +543,7 @@ if __name__ == '__main__':
         if len(sys.argv) < 4:
             class_new(sys.argv[2])
         else:
-            class_new(sys.argv[2],sys.argv[3],sys.argv[4])
+            class_new(sys.argv[2],sys.argv[3].decode('utf-8'),sys.argv[4])
     elif sys.argv[1] == 'segment':
         seg_files(sys.argv[2],sys.argv[3])
     elif sys.argv[1] == 'test':
