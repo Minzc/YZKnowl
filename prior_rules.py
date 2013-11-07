@@ -11,8 +11,10 @@ def prior_rules(ln,replace_punc = True):
     """
     if replace_punc:
         ln = kw_util.punc_replace(ln)
-    if ('1.' in ln and '2.' in ln) \
+    ln = re.sub(r'"[^"]{7}.*"','',ln)
+    if ('1.' in ln and '2.' in ln)\
     or ('1,' in ln and '2,' in ln)\
-    or ('1:' in ln and '2:' in ln):
-        return filter(lambda x : x != '', re.split(r'\d+[.,]',ln))
+    or ('1:' in ln and '2:' in ln)\
+    or ('#' in ln):
+        return filter(lambda x : x != '', re.split(r'\d+[.,]|#',ln))
     return [ln]

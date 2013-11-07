@@ -12,14 +12,14 @@ def abs_pos(senti_wrd,feature):
     :Param feature  : feature
     :Returns        : True if the '[sentiment]的[feature]' form exists in the message
     """
-    if feature.wrd_strt_pos - senti_wrd.wrd_end_pos == 0:
+    if feature.wrd_end_pos - senti_wrd.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
         return True
-    if senti_wrd.wrd_end_pos - feature.wrd_strt_pos == 0:
+    if senti_wrd.wrd_end_pos - feature.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
         return True
     return False
 
 
-def abs_dis(feature,senti_wrd):
+def abs_dis(feature,senti_wrd,CERNTAIN_PAIR):
     """Decide if the phrase distance between feature and sentiment word is not larger than three
     :Param feature  : feature
     :Param senti_wrd: sentiment word
@@ -28,8 +28,13 @@ def abs_dis(feature,senti_wrd):
     threshold = 2
     if feature.phrase < senti_wrd.phrase:
         threshold = 3
+    word_dis = senti_wrd.wrd_strt_pos - feature.wrd_end_pos
+    if word_dis < 0:
+        word_dis = feature.wrd_strt_pos - senti_wrd.wrd_end_pos
+    if CERNTAIN_PAIR.has_key(feature.token.word+'$'+senti_wrd.token.word):
+        threshold += 1
     if abs(feature.phrase - senti_wrd.phrase) + \
-       abs(feature.sntnc - senti_wrd.sntnc) > threshold:
+       abs(feature.sntnc - senti_wrd.sntnc) + word_dis/7> threshold:
         return False
     return True
 
@@ -39,6 +44,36 @@ def if_rep_due_amb(senti_candi,best_fit_senti,SENTI_AMBI):
            SENTI_AMBI.get(senti_kw.token.word,0.5) > SENTI_AMBI.get(best_fit_senti.token.word,0.5):
           best_fit_senti = senti_kw
     return best_fit_senti
+
+def ignore_unseen_senti(KW_DIS,sentiment,feature):
+    if sentiment.token.word not in KW_DIS \
+    and sentiment.phrase != feature.phrase:
+        return True
+    return False
+
+def ignore_feature(KW_PAIR_DISTR,feature,sentiment,wd_dis_type,snt_dis_type,phrase_dis_type,relative_pos):
+    high_level_pair = feature.token.word+'$sentiment'
+    if not KW_PAIR_DISTR.has_key(high_level_pair):
+        high_level_pair = 'feature$'+sentiment.token.word
+    if not KW_PAIR_DISTR.has_key(high_level_pair):
+        high_level_pair = 'feature$sentiment'
+
+
+def conbime_sentiment(kws,senti_dic):
+    pre_kw = None
+    removed_kw = []
+    for kw in kws:
+        if kw.token.word in senti_dic \
+        and pre_kw != None\
+        and pre_kw.token.word in senti_dic\
+        and kw.wrd_strt_pos == pre_kw.wrd_end_pos\
+        and pre_kw.phrase == kw.phrase:
+            removed_kw.append(pre_kw)
+        pre_kw = kw
+    for kw in removed_kw:
+        kws.remove(kw)
+    return kws
+
 
 def obj_feature_close(obj_poss,feature):
     smallest_dis = 10

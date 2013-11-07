@@ -37,7 +37,7 @@ def test_load_model():
 def test_classify():
     FreqBase.DEBUG = True
     FreqBase.OBJ_NAME = u'伊利谷粒多'
-    FreqBase.class_new('testCodeCrrct.txt',u'伊利谷粒多','model.txt')
+    FreqBase.class_new('testCodeCrrct.txt',u'小米手机','model.txt')
 
 def format_know_base():
     lns = [ln.decode('utf-8').strip().lower()

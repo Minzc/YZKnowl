@@ -89,6 +89,11 @@ def punc_replace(ln):
     ln = re.sub(u'、',',',ln)
     ln = re.sub(u'“','"',ln)
     ln = re.sub(u'”','"',ln)
+    ln = re.sub(u'【','[',ln)
+    ln = re.sub(u'】',']',ln)
+    ln = re.sub(u'『','[',ln)
+    ln = re.sub(u'』',']',ln)
+    ln = re.sub(u'＃','#',ln)
     ln = re.sub(r'\(.*?\)','',ln)
     return ln
 
@@ -121,7 +126,7 @@ def extract_key_pairs( s, dict ):
 
 def print_topk( dist, n):
     for k, count in dist.items()[:n]:
-        print k + "\t" + str(count)
+        print k.encode('utf-8') + "\t" + str(count)
         #    print k.encode('utf-8') + "\t" + str(count)
 
 def print_match_words( ln, dict):
