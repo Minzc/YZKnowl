@@ -83,7 +83,6 @@ def punc_replace(ln):
     ln = re.sub(ur'，',',',ln)
     ln = re.sub(ur'（','(',ln)
     ln = re.sub(ur'）',')',ln)
-    ln = regex_url.sub(" ", ln)
     ln = re.sub(u'\.\.',u'…',ln)
     ln = re.sub(u'～','~',ln)
     ln = re.sub(u'、',',',ln)
@@ -95,6 +94,7 @@ def punc_replace(ln):
     ln = re.sub(u'』',']',ln)
     ln = re.sub(u'＃','#',ln)
     ln = re.sub(r'\(.*?\)','',ln)
+    ln = regex_url.sub(" ", ln)
     return ln
 
 def extract_tags( sentence, tag, minlen=2, topK=20 ):

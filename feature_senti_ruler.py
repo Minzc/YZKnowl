@@ -13,9 +13,9 @@ def abs_pos(senti_wrd,feature):
     :Returns        : True if the '[sentiment]的[feature]' form exists in the message
     """
     if feature.wrd_end_pos - senti_wrd.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
-        return True
+        return False
     if senti_wrd.wrd_end_pos - feature.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
-        return True
+        return False
     return False
 
 

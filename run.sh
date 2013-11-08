@@ -35,17 +35,17 @@ echo '        |'
 
 ##########TEST#############
 echo  '\033[31m Start Testing'
-/usr/local/bin/python2.7 FreqBase.py classify xiaomi/precision_test.txt $OBJE_NAME model.txt > rst.txt
+/usr/local/bin/python2.7 FreqBase.py classify test_data.txt $OBJE_NAME model.txt > rst.txt
 echo  '\033[31m Finish Testing'
 echo '        |'
 
 ##########CLEAN#############
 echo  '\033[31m Start Cleaning\033[0m'
-rm model.txt
+#rm model.txt
 echo '  remove model file'
-rm train_data.txt
+#rm train_data.txt
 echo '  remove train file'
-rm test_data.txt
+#rm test_data.txt
 echo '  remove test file'
 echo  '\033[31m Finish Cleaning\033[0m'
 
