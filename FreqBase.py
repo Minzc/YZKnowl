@@ -124,10 +124,10 @@ def load_knw_base():
 
 def if_ambiguity(kw1, kw2, senti_dic):
     """Judge if kw1 is an ambiguous word
-    : Param kw1       : keyword to be judged
-    : Param kw2       : accompanied keyword
-    : Param senti_dic : sentiment dictionary
-    : Returns         : True if kw1 is not ambiguous
+    :param kw1: keyword to be judged
+    :param kw2: accompanied keyword
+    :param senti_dic: sentiment dictionary
+    :Returns  : True if kw1 is not ambiguous
     """
     if kw1.phrase == kw2.phrase \
         and kw2.token.word in senti_dic \
@@ -149,7 +149,6 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
     kw_distr = nltk.FreqDist()
     total_docs = 0
     total_null_docs = 0
-
 
     # Format lns by prior rules
     for tmp_ln in tmp_lns:
@@ -278,8 +277,8 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
     # Output Model File
     print '#FEATURE_SENTI_TYPE_DISTR'
     for kw_pair, type_dises in FEATURE_SENTI_TYPE.items():
-        for type, value in type_dises.items():
-            print kw_pair.encode('utf-8') + '$' + str(type) + '$' + str(value)
+        for dis_type, value in type_dises.items():
+            print kw_pair.encode('utf-8') + '$' + str(dis_type) + '$' + str(value)
     print '#FEATURE_SENTI_DIST'
     for kw, count in FEATURE_SENTI.items():
         print kw.encode('utf-8') + '$' + str(count + 1)
@@ -306,16 +305,16 @@ def load_glb_mdl(infile):
             feature_type = int(ln_elemnts[3])
             if feature_type == Dis_Type.LESS_THAN_THREE_WORDS \
                 or feature_type == Dis_Type.LESS_THAN_ONE_WORDS \
-                or feature_type == Dis_Type.MORE_THAN_THREE_WORDS:
+                    or feature_type == Dis_Type.MORE_THAN_THREE_WORDS:
                 GLB_WD_DIS.setdefault(fs_pair, nltk.FreqDist())
                 GLB_WD_DIS[fs_pair].inc(feature_type, int(value))
             elif feature_type == Dis_Type.LESS_THAN_FOUR_PHRASE \
                 or feature_type == Dis_Type.MORE_THAN_FOUR_PHRASE \
-                or feature_type == Dis_Type.LESS_THAN_TWO_PHRASE:
+                    or feature_type == Dis_Type.LESS_THAN_TWO_PHRASE:
                 GLB_PHRS_DIS.setdefault(fs_pair, nltk.FreqDist())
                 GLB_PHRS_DIS[fs_pair].inc(feature_type, int(value))
-            elif feature_type == Dis_Type.LESS_THAN_ONE_SENT or \
-                            feature_type == Dis_Type.MORE_THAN_ONE_SENT:
+            elif feature_type == Dis_Type.LESS_THAN_ONE_SENT \
+                    or feature_type == Dis_Type.MORE_THAN_ONE_SENT:
                 GLB_SNT_DIS.setdefault(fs_pair, nltk.FreqDist())
                 GLB_SNT_DIS[fs_pair].inc(feature_type, int(value))
             elif feature_type == Dis_Type.POSTERIOR or feature_type == Dis_Type.PRIOR:
@@ -353,9 +352,9 @@ def load_mdl(infile=MODEL_FILE_PATH):
             continue
 
         if feature_type == 0:
-            kw1, kw2, type, value = ln.strip().split('$')
+            kw1, kw2, dis_type, value = ln.strip().split('$')
             FEATURE_SENTI_TYPE.setdefault(kw1 + '$' + kw2, nltk.FreqDist())
-            FEATURE_SENTI_TYPE[kw1 + '$' + kw2].inc(int(type), int(value))
+            FEATURE_SENTI_TYPE[kw1 + '$' + kw2].inc(int(dis_type), int(value))
         elif feature_type == 1:
             kw1, kw2, value = ln.strip().split('$')
             FEATURE_SENTI[kw1 + '$' + kw2] = int(value)
@@ -395,10 +394,8 @@ def generate_segment_lst_know(ln, synonym, obj_name, entity_class):
                 continue
             kw_poses = kw_util.backward_maxmatch(phrase, know_dic, 100, 2)
             for kw_pos in kw_poses:
-                start, end, abs_word_start, abs_word_end = kw_pos[0], \
-                                                           kw_pos[1], \
-                                                           pre_phrases_len + kw_pos[0], \
-                                                           pre_phrases_len + kw_pos[1]
+                start, end, abs_word_start, abs_word_end = kw_pos[0], kw_pos[1], pre_phrases_len + kw_pos[
+                    0], pre_phrases_len + kw_pos[1]
                 keyword = phrase[start:end]
                 if synonym[phrase[start:end]] == obj_name:
                     obj_token = Token(index, phrase_position, abs_word_start, abs_word_end,
@@ -432,10 +429,11 @@ def decide_dis_feature_type(kw1, kw2):
     if word_distance < 0:
         word_distance = kw2.wrd_strt_pos - kw1.wrd_end_pos
         # Distance Feature
-    wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos = Dis_Type.MORE_THAN_THREE_WORDS, \
-                                                               Dis_Type.MORE_THAN_ONE_SENT, \
-                                                               Dis_Type.MORE_THAN_FOUR_PHRASE, \
-                                                               Dis_Type.PRIOR
+    wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos = \
+        Dis_Type.MORE_THAN_THREE_WORDS, \
+        Dis_Type.MORE_THAN_ONE_SENT, \
+        Dis_Type.MORE_THAN_FOUR_PHRASE, \
+        Dis_Type.PRIOR
     # Sentence Distance Feature
     if abs(kw1.sntnc - kw2.sntnc) < 2:
         snt_dis_type = Dis_Type.LESS_THAN_ONE_SENT
@@ -454,11 +452,6 @@ def decide_dis_feature_type(kw1, kw2):
     return wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos
 
 
-def cal_high_level_likelihood(feature, sentiment):
-    high_level_pair = feature.token.word + '$sentiment'
-    #TODO
-
-
 def cal_likelihood(kw, feature):
     snt_lkhd = 1
     wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos \
@@ -466,43 +459,46 @@ def cal_likelihood(kw, feature):
     feature_senti_pair = feature.token.word + '$' + kw.token.word
     # P(c=dis|kw-sentiment)
     # Word Distance Feature
-    if FEATURE_SENTI_TYPE.has_key(feature_senti_pair):
-        total_pairs = FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
-        snt_lkhd *= FEATURE_SENTI_TYPE[feature_senti_pair][wd_dis_type] \
-                    / total_pairs
+    if feature_senti_pair in FEATURE_SENTI_TYPE:
+        total_pairs = \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
+        snt_lkhd *= FEATURE_SENTI_TYPE[feature_senti_pair][wd_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.5
     if DEBUG:
         print 'SENTIMENT WORD:', feature_senti_pair, snt_lkhd, wd_dis_type
         # Sentence Distance Feature
-    if FEATURE_SENTI_TYPE.has_key(feature_senti_pair):
-        total_pairs = FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_SENT] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_ONE_SENT]
-        snt_lkhd *= FEATURE_SENTI_TYPE[feature_senti_pair][snt_dis_type] \
-                    / total_pairs
+    if feature_senti_pair in FEATURE_SENTI_TYPE:
+        total_pairs = \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_SENT] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_ONE_SENT]
+        snt_lkhd *= \
+            FEATURE_SENTI_TYPE[feature_senti_pair][snt_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.5
     if DEBUG:
         print 'SENTIMENT SENTENCE:', feature_senti_pair, snt_lkhd, snt_dis_type
-    # Phrase Distance Feature
-    if FEATURE_SENTI_TYPE.has_key(feature_senti_pair):
-        total_pairs = FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_TWO_PHRASE] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_FOUR_PHRASE] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_FOUR_PHRASE]
-        snt_lkhd *= FEATURE_SENTI_TYPE[feature_senti_pair][phrase_dis_type] \
-                    / total_pairs
+        # Phrase Distance Feature
+    if feature_senti_pair in FEATURE_SENTI_TYPE:
+        total_pairs = \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_TWO_PHRASE] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_FOUR_PHRASE] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_FOUR_PHRASE]
+        snt_lkhd *= \
+            FEATURE_SENTI_TYPE[feature_senti_pair][phrase_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.3
     if DEBUG:
         print 'SENTIMENT PHRASE:', feature_senti_pair, snt_lkhd, phrase_dis_type
     # Relative Position Feature
-    if FEATURE_SENTI_TYPE.has_key(feature_senti_pair):
-        total_pairs = FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.PRIOR] + \
-                      FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.POSTERIOR]
-        snt_lkhd *= FEATURE_SENTI_TYPE[feature_senti_pair][relative_pos] \
-                    / total_pairs
+    if feature_senti_pair in FEATURE_SENTI_TYPE:
+        total_pairs = \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.PRIOR] + \
+            FEATURE_SENTI_TYPE[feature_senti_pair][Dis_Type.POSTERIOR]
+        snt_lkhd *= \
+            FEATURE_SENTI_TYPE[feature_senti_pair][relative_pos] / total_pairs
     else:
         snt_lkhd *= 0.5
 
@@ -570,9 +566,13 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
         # TODO: try different tactics, problem left
         null_likelihood = 0.5 * 0.5 * 0.3 * 0.5 * FEATURE_NULL_DIS.get(feature.token.word, 1) / total_pair_occur * ALPHA
         if DEBUG:
-            print 'Feature null', feature.token.word, FEATURE_NULL_DIS.get(feature.token.word,
-                                                                           0.5), 'ALPHA:', ALPHA, 1 / total_pair_occur, null_likelihood
-            #        print feature.token.word,null_likelihood
+            print 'Feature null', \
+                feature.token.word, \
+                FEATURE_NULL_DIS.get(feature.token.word, 0.5), \
+                'ALPHA:', ALPHA, \
+                1 / total_pair_occur, \
+                null_likelihood
+
         fs_pair.append((null_likelihood, 0, feature.token.word, 'null' + feature.token.word))
 
     # (likelihood,reversed_word_distance,feature,sentiment)
@@ -660,7 +660,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
             tmp_pairs = select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, obj_poss)
             # Combine Results
             for key, senti_value in tmp_pairs.items():
-                if feature_sent_pairs.has_key(key) and feature_sent_pairs[key][1] > senti_value[1]:
+                if key in feature_sent_pairs.has_key and feature_sent_pairs[key][1] > senti_value[1]:
                     continue
                 feature_sent_pairs[key] = senti_value
             feature_sent_pairs = dict(list(feature_sent_pairs.items()) + list(tmp_pairs.items()))
@@ -706,11 +706,11 @@ def print_rst(result):
     print
     for feature, count in list(result.FEATURE.items())[:5]:
         print '#' + feature.encode('utf-8') + '(' + str(count) + ')' + '#'
-        if result.FEATURE_POS.has_key(feature):
+        if feature in result.FEATURE_POS:
             for sentiment, count in list(result.FEATURE_POS[feature].items())[:5]:
                 print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
             print '\n'
-        if result.FEATURE_NEG.has_key(feature):
+        if feature in result.FEATURE_NEG:
             for sentiment, count in list(result.FEATURE_NEG[feature].items())[:5]:
                 print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
             print '\n'
@@ -718,8 +718,8 @@ def print_rst(result):
     print '==========================================================='
     print '5. detail analysis                        *detail-analysis*'
     print
-    for tuple, tws in result.TAG_TWEETS.items():
-        feature, sentiment = tuple.split('$')
+    for tag_tuple, tws in result.TAG_TWEETS.items():
+        feature, sentiment = tag_tuple.split('$')
         print '*' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '*'
         print
         for tw in tws:
@@ -730,7 +730,7 @@ def print_rst(result):
 def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result):
     feature = ''
     for f, score in feature_rst:
-        if feature_sent_pairs.has_key(f) and 'null' not in feature_sent_pairs[f][0]:
+        if f in feature_sent_pairs and 'null' not in feature_sent_pairs[f][0]:
             feature = f
             break
     if feature == '':
@@ -769,7 +769,7 @@ def replace_mention(nick_name_lst, obj_name, ln):
 
 def train_data_clean(infile):
     ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐'
-        , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
+        , u'活动', u'好友' , u'支持' , u'话题' , u'详情' , u'地址' , u'赢' , u'抽奖' , u'好运' , u'中奖']
     lns = [ln.decode('utf-8') for ln in open(infile).readlines()]
     clean_lns = {}
     for ln in lns:
@@ -781,7 +781,7 @@ def train_data_clean(infile):
         for ad_word in ad_words:
             if ad_word in ln:
                 ad_counter += 1
-        if kw_util.regex_url.search(ln) != None:
+        if kw_util.regex_url.search(ln) is not None:
             ad_counter += 1
 
         if ad_counter > 2:
@@ -840,5 +840,3 @@ if __name__ == '__main__':
         class_new()
     elif sys.argv[1] == 'clean':
         train_data_clean(sys.argv[2])
-
-
