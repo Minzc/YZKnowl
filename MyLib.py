@@ -78,7 +78,100 @@ def seg_and_filter(ln, obj_name, stop_dic):
     return kws
 
 
+def create_and_init_frqdis(*argvs):
+    tmp = nltk.FreqDist()
+    for argv in argvs:
+        tmp.inc(argv)
+    return tmp
+
+
 def print_seg(kws):
     for kw in kws:
         print kw.token.word + '/' + kw.token.flag + '/' + str(kw.sntnc), str(kw.wrd_strt_pos), str(kw.wrd_end_pos)
     print
+
+
+def print_rst(result):
+    print '1. summary                           |general-information|'
+    print '2. positive opinion tuples           |pos-tags|'
+    print '3. negative opinion tuples           |neg-tags|'
+    print '4. feature sentiment tuples          |feature-sentiment|'
+    print '5. detail analysis                   |detail-analysis|'
+    print
+    print '==========================================================='
+    print '1. summary                            *general-information*'
+    print
+    print 'Total Tweets:', result.TOTAL_TWEETS
+    print 'Positive Tweets:', sum(result.POS_TAGS.values())
+    print 'Negative Tweets:', sum(result.NEG_TAGS.values())
+    print
+    print '==========================================================='
+    print '2. positive opinion tuples                       *pos-tags*'
+    print
+    for sentiment, count in list(result.POS_TAGS.items())[:5]:
+        print '#' + sentiment.encode('utf-8') + '(' + str(count) + ')' + '#'
+        for feature, count in list(result.POS_FEATURE[sentiment].items())[:5]:
+            print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
+        print '\n'
+    print
+    print '==========================================================='
+    print '3. negative opinion tuples                       *neg-tags*'
+    print
+    for sentiment, count in list(result.NEG_TAGS.items())[:5]:
+        print '#' + sentiment.encode('utf-8') + '(' + str(count) + ')' + '#'
+        for feature, count in list(result.NEG_FEATURE[sentiment].items())[:5]:
+            print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
+        print '\n'
+    print
+    print '==========================================================='
+    print '4. feature sentiment tuples             *feature-sentiment*'
+    print
+    for feature, count in list(result.FEATURE.items())[:5]:
+        print '#' + feature.encode('utf-8') + '(' + str(count) + ')' + '#'
+        if feature in result.FEATURE_POS:
+            for sentiment, count in list(result.FEATURE_POS[feature].items())[:5]:
+                print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
+            print '\n'
+        if feature in result.FEATURE_NEG:
+            for sentiment, count in list(result.FEATURE_NEG[feature].items())[:5]:
+                print '|' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '|\t',
+            print '\n'
+    print
+    print '==========================================================='
+    print '5. detail analysis                        *detail-analysis*'
+    print
+    for tag_tuple, tws in result.TAG_TWEETS.items():
+        feature, sentiment = tag_tuple.split('$')
+        print '*' + feature.encode('utf-8') + '-' + sentiment.encode('utf-8') + '*'
+        print
+        for tw in tws:
+            print tw.encode('utf-8')
+        print '-----------------------------------------------------------'
+
+
+def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result):
+    feature = ''
+    for f, score in feature_rst:
+        if f in feature_sent_pairs and 'null' not in feature_sent_pairs[f][0]:
+            feature = f
+            break
+    if feature == '':
+        return
+    sentiment = feature_sent_pairs[feature][0]
+    result.FEATURE.inc(feature)
+    if sent_dic[sentiment] == 'p':
+        result.POS_FEATURE.setdefault(sentiment, nltk.FreqDist())
+        result.POS_FEATURE[sentiment].inc(feature)
+        result.FEATURE_POS.setdefault(feature, nltk.FreqDist())
+        result.FEATURE_POS[feature].inc(sentiment)
+        result.POS_TAGS.inc(sentiment)
+    elif sent_dic[sentiment] == 'n':
+        result.FEATURE_NEG.setdefault(feature, nltk.FreqDist())
+        result.FEATURE_NEG[feature].inc(sentiment)
+        result.NEG_FEATURE.setdefault(sentiment, nltk.FreqDist())
+        result.NEG_FEATURE[sentiment].inc(feature)
+        result.NEG_TAGS.inc(sentiment)
+
+    result.TAG_TWEETS.setdefault(feature + '$' + sentiment, [])
+    result.TAG_TWEETS[feature + '$' + sentiment].append(ln)
+    result.TOTAL_TWEETS += 1

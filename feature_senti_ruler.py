@@ -5,6 +5,8 @@ __author__ = 'congzicun'
 
 # NEGATIVE_EMOTICONS = ['[泪]','[抓狂]','[哼]','[鄙视]','[怒]','[威武]','[弱]']
 # POSITIVE_EMOTICONS = [ '[嘻嘻]' , '[鼓掌]' , '[偷笑]' , '[太开心]' , '[哈哈]' ]
+
+
 def abs_pos(senti_wrd, feature):
     """Handle special situation : [Sentiment Word]的[Feature]
     :Param ln       : message

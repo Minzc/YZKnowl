@@ -35,14 +35,11 @@ class Local_Model:
     F_S_SET = {}
     TRAIN_SET_VOLUME = 0
     TOTAL_NULL_SENTI = 0
-
-GLB_WD_DIS = {}
-GLB_SNT_DIS = {}
-GLB_PHRS_DIS = {}
-GLB_RLTV_DIS = {}
-GLB_FS_DIS = {}
-GLB_SENTI_AMBI = {}
-GLB_KW_DIS = nltk.FreqDist()
+class Global_Model:
+    F_S_TYPE = {}
+    FS_NUM = nltk.FreqDist()
+    S_AMB = {}
+    KW_DIS = {}
 
 
 class Dis_Type:
@@ -305,6 +302,9 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
 
 
 def load_glb_mdl(infile):
+    """Load global model
+    :Param infile: model file path
+    """
     lns = [ln.decode('utf-8').lower().strip() for ln in open(infile).readlines()]
     for ln in lns:
         key, value = ln.split('\t')
@@ -312,29 +312,18 @@ def load_glb_mdl(infile):
         if ln_elemnts[0] == 'FST_DIST'.lower():
             fs_pair = ln_elemnts[1] + '$' + ln_elemnts[2]
             feature_type = int(ln_elemnts[3])
-            if feature_type == Dis_Type.LESS_THAN_THREE_WORDS \
-                or feature_type == Dis_Type.LESS_THAN_ONE_WORDS \
-                    or feature_type == Dis_Type.MORE_THAN_THREE_WORDS:
-                GLB_WD_DIS.setdefault(fs_pair, nltk.FreqDist())
-                GLB_WD_DIS[fs_pair].inc(feature_type, int(value))
-            elif feature_type == Dis_Type.LESS_THAN_FOUR_PHRASE \
-                or feature_type == Dis_Type.MORE_THAN_FOUR_PHRASE \
-                    or feature_type == Dis_Type.LESS_THAN_TWO_PHRASE:
-                GLB_PHRS_DIS.setdefault(fs_pair, nltk.FreqDist())
-                GLB_PHRS_DIS[fs_pair].inc(feature_type, int(value))
-            elif feature_type == Dis_Type.LESS_THAN_ONE_SENT \
-                    or feature_type == Dis_Type.MORE_THAN_ONE_SENT:
-                GLB_SNT_DIS.setdefault(fs_pair, nltk.FreqDist())
-                GLB_SNT_DIS[fs_pair].inc(feature_type, int(value))
-            elif feature_type == Dis_Type.POSTERIOR or feature_type == Dis_Type.PRIOR:
-                GLB_RLTV_DIS[fs_pair] = int(value)
+            Global_Model.F_S_TYPE.setdefault(fs_pair, nltk.FreqDist())
+            Global_Model.F_S_TYPE[fs_pair].inc(feature_type, int(value))
         elif ln_elemnts[0] == 'FS_DIST'.lower():
             fs_pair = ln_elemnts[1] + '$' + ln_elemnts[2]
-            GLB_FS_DIS[fs_pair] = int(value)
+            Global_Model.FS_NUM.inc(fs_pair,int(value))
         elif ln_elemnts[0] == 'AMBI_DIST'.lower():
-            GLB_SENTI_AMBI[ln_elemnts[1]] = int(value)
-        elif ln_elemnts[0] == 'Local_Model.KW_DIST'.lower():
-            GLB_KW_DIS[ln_elemnts[1]] = int(value)
+            Global_Model.S_AMB[ln_elemnts[1]] = int(value)
+        elif ln_elemnts[0] == 'KW_DIST'.lower():
+            Global_Model.KW_DIS[ln_elemnts[1]] = int(value)
+    for kw in Global_Model.S_AMB.keys():
+        if kw in Global_Model.KW_DIS:
+            Global_Model.S_AMB[kw] = 1 - Global_Model.S_AMB[kw] / (Global_Model.S_AMB[kw] + Global_Model.KW_DIS.get(kw,0))
 
 
 def load_mdl(infile=MODEL_FILE_PATH):
@@ -617,6 +606,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     """
     # Load Model
     load_mdl(model_name)
+    load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic = load_knw_base()
 
