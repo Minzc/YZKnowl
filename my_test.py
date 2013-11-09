@@ -23,7 +23,7 @@ def test_gen_model_get_kws_knwbase():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
     for ln in lns:
         print ln
-        kws,obj_poss = FreqBase.generate_segment_lst_know(ln,synonym,u'伊利谷粒多')
+        kws,obj_poss = FreqBase.seg_ln(ln,synonym,u'伊利谷粒多')
         for kw in kws:
             print kw.token.word,kw.wrd_strt_pos,kw.wrd_end_pos,kw.sntnc
             for kw_2 in kws:

@@ -97,6 +97,7 @@ def load_knw_base():
     # sentiment
     # indx -> instance value -> entity
     sent_dic = {}
+    degree_dic = set()
     for ln in lns:
         if ln.startswith('#') or len(ln) == 0:
             continue
@@ -110,6 +111,8 @@ def load_knw_base():
                         sent_dic[entity] = 'p'
                     elif u'负面' in cls:
                         sent_dic[entity] = 'n'
+                    elif u'程度' in cls:
+                        degree_dic.add(entity)
                 else:
                     entity_class.setdefault(entity, [])
                     entity_class[entity].append(cls)
@@ -117,7 +120,7 @@ def load_knw_base():
         for instance in instances.split('|'):
             if len(instance) != 0:
                 synonym[instance] = entity
-    return entity_class, synonym, sent_dic
+    return entity_class, synonym, sent_dic, degree_dic
 
 
 def if_ambiguity(kw1, kw2, senti_dic):
@@ -140,7 +143,7 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
     : Param infile   : training data file path
     : Param obj_name : object name
     """
-    entity_class, synonym, senti_dic = load_knw_base()
+    entity_class, synonym, senti_dic, degree_dic = load_knw_base()
     tmp_lns, lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()], []
     sentiment_ambi = nltk.FreqDist()
     f_null_docs = nltk.FreqDist()
@@ -156,7 +159,8 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
         ln = re.sub('//@.+', '', ln)
         if DEBUG:
             print 'Gen_Model', ln.encode('utf-8')
-        kws, obj_poss = generate_segment_lst_know(ln, synonym, obj_name, entity_class)
+        kws, obj_poss = seg_ln(ln, synonym, obj_name, entity_class)
+        kws = feature_senti_ruler.combine_sentiment(kws, senti_dic, degree_dic)
         if len(kws) != 0:
             total_docs += 1
             # Start Statistic
@@ -276,11 +280,11 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
             total_null_docs += 1
 
     # Output Model File
-    print '#Local_Model.FEATURE_SENTI_TYPE_DISTR'
+    print '#FEATURE_SENTI_TYPE_DISTR'
     for kw_pair, type_dises in Local_Model.F_S_TYPE.items():
         for dis_type, value in type_dises.items():
             print kw_pair.encode('utf-8') + '$' + str(dis_type) + '$' + str(value)
-    print '#Local_Model.FEATURE_SENTI_DIST'
+    print '#FEATURE_SENTI_DIST'
     for kw, count in Local_Model.FS_NUM.items():
         print kw.encode('utf-8') + '$' + str(count + 1)
     print '#AMBI_DIST'
@@ -289,7 +293,7 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
     print '#FEATURE_NULL'
     for kw, count in f_null_docs.items():
         print kw.encode('utf-8') + '$' + str(count + 1) + '$' + str(kw_distr.get(kw) + 2)
-    print '#Local_Model.KW_DIS'
+    print '#KW_DIS'
     for kw, count in kw_distr.items():
         print kw.encode('utf-8') + '$' + str(count)
     print '#TOTAL_DOC'
@@ -309,10 +313,23 @@ def load_glb_mdl(infile):
     for ln in lns:
         key, value = ln.split('\t')
         ln_elemnts = key.split('$')
+        # Global model didn't smooth data when it's trained, the operation is needed to be done by ourselves
         if ln_elemnts[0] == 'FST_DIST'.lower():
             fs_pair = ln_elemnts[1] + '$' + ln_elemnts[2]
             feature_type = int(ln_elemnts[3])
-            Global_Model.F_S_TYPE.setdefault(fs_pair, nltk.FreqDist())
+            Global_Model.F_S_TYPE.setdefault(fs_pair,
+                                             MyLib.create_and_init_frqdis(
+                                                 Dis_Type.LESS_THAN_ONE_WORDS,
+                                                 Dis_Type.MORE_THAN_THREE_WORDS,
+                                                 Dis_Type.LESS_THAN_THREE_WORDS,
+                                                 Dis_Type.LESS_THAN_ONE_SENT,
+                                                 Dis_Type.MORE_THAN_ONE_SENT,
+                                                 Dis_Type.LESS_THAN_TWO_PHRASE,
+                                                 Dis_Type.LESS_THAN_FOUR_PHRASE,
+                                                 Dis_Type.MORE_THAN_FOUR_PHRASE,
+                                                 Dis_Type.PRIOR,
+                                                 Dis_Type.POSTERIOR
+                                             ))
             Global_Model.F_S_TYPE[fs_pair].inc(feature_type, int(value))
         elif ln_elemnts[0] == 'FS_DIST'.lower():
             fs_pair = ln_elemnts[1] + '$' + ln_elemnts[2]
@@ -330,10 +347,10 @@ def load_mdl(infile=MODEL_FILE_PATH):
     lns = [ln.decode('utf-8').lower().strip() for ln in open(infile).readlines()]
     feature_type = -1
     for ln in lns:
-        if ln == '#Local_Model.FEATURE_SENTI_TYPE_DISTR'.lower():
+        if ln == '#FEATURE_SENTI_TYPE_DISTR'.lower():
             feature_type = 0
             continue
-        elif ln == '#Local_Model.FEATURE_SENTI_DIST'.lower():
+        elif ln == '#FEATURE_SENTI_DIST'.lower():
             feature_type = 1
             continue
         elif ln == '#AMBI_DIST'.lower():
@@ -342,7 +359,7 @@ def load_mdl(infile=MODEL_FILE_PATH):
         elif ln == '#FEATURE_NULL'.lower():
             feature_type = 3
             continue
-        elif ln == '#Local_Model.KW_DIS'.lower():
+        elif ln == '#KW_DIS'.lower():
             feature_type = 4
             continue
         elif ln == '#TOTAL_DOC'.lower():
@@ -360,7 +377,7 @@ def load_mdl(infile=MODEL_FILE_PATH):
             kw1, kw2, value = ln.strip().split('$')
             Local_Model.FS_NUM[kw1 + '$' + kw2] = int(value)
             Local_Model.F_S_SET.setdefault(kw1, set())
-            if kw2 != 'sentiment':
+            if kw2 != 'sentiment' and kw2 != 'feature':
                 Local_Model.F_S_SET[kw1].add(kw2)
         elif feature_type == 2:
             sent_kw, not_amb_doc, total_doc = ln.strip().split('$')
@@ -383,7 +400,7 @@ def load_mdl(infile=MODEL_FILE_PATH):
             Local_Model.CERNTAIN_PAIR.inc(feature+'$'+sentiment,int(count))
 
 
-def generate_segment_lst_know(ln, synonym, obj_name, entity_class):
+def seg_ln(ln, synonym, obj_name, entity_class):
     know_dic = set(synonym.keys())
     know_dic.add(obj_name)
     sub_sents = filter(lambda x: x != '', re.split(ur'[!.?…~;"#]', kw_util.punc_replace(ln)))
@@ -394,9 +411,9 @@ def generate_segment_lst_know(ln, synonym, obj_name, entity_class):
         if DEBUG:
             print sub_sent.encode('utf-8')
         for phrase in kw_util.tweet_filter(sub_sent).strip().split(' '):
-            if len(phrase) < 1 or len(phrase) > 22:
+            if len(phrase) < 1 or len(phrase) > 30:
                 continue
-            kw_poses = kw_util.backward_maxmatch(phrase, know_dic, 100, 2)
+            kw_poses = kw_util.backward_maxmatch(phrase, know_dic, 100, 1)
             for kw_pos in kw_poses:
                 start, end, abs_word_start, abs_word_end = kw_pos[0], kw_pos[1], pre_phrases_len + kw_pos[
                     0], pre_phrases_len + kw_pos[1]
@@ -460,51 +477,94 @@ def cal_likelihood(kw, feature):
     snt_lkhd = 1
     wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos \
         = decide_dis_feature_type(kw, feature)
-    feature_senti_pair = feature.token.word + '$' + kw.token.word
+    feature_senti_pair = kw.token.word + '$' + feature.token.word
     # P(c=dis|kw-sentiment)
     # Word Distance Feature
     if feature_senti_pair in Local_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Local Model'
         total_pairs = \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
         snt_lkhd *= Local_Model.F_S_TYPE[feature_senti_pair][wd_dis_type] / total_pairs
+    elif feature_senti_pair in Global_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Global Model'
+        total_pairs = \
+        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
+        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
+        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
+        snt_lkhd = Global_Model.F_S_TYPE[feature_senti_pair][wd_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.5
     if DEBUG:
         print 'SENTIMENT WORD:', feature_senti_pair, snt_lkhd, wd_dis_type
         # Sentence Distance Feature
     if feature_senti_pair in Local_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Local Model'
         total_pairs = \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_SENT] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_ONE_SENT]
         snt_lkhd *= \
             Local_Model.F_S_TYPE[feature_senti_pair][snt_dis_type] / total_pairs
+    elif feature_senti_pair in Global_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Global Model'
+        total_pairs = \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_SENT] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_ONE_SENT]
+        snt_lkhd *= \
+            Global_Model.F_S_TYPE[feature_senti_pair][snt_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.5
     if DEBUG:
         print 'SENTIMENT SENTENCE:', feature_senti_pair, snt_lkhd, snt_dis_type
         # Phrase Distance Feature
     if feature_senti_pair in Local_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Local Model'
         total_pairs = \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_TWO_PHRASE] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_FOUR_PHRASE] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_FOUR_PHRASE]
         snt_lkhd *= \
             Local_Model.F_S_TYPE[feature_senti_pair][phrase_dis_type] / total_pairs
+    elif feature_senti_pair in Global_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Global Model'
+        total_pairs = \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_TWO_PHRASE] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_FOUR_PHRASE] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_FOUR_PHRASE]
+        snt_lkhd *= \
+            Global_Model.F_S_TYPE[feature_senti_pair][phrase_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.3
     if DEBUG:
         print 'SENTIMENT PHRASE:', feature_senti_pair, snt_lkhd, phrase_dis_type
     # Relative Position Feature
     if feature_senti_pair in Local_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Local Model'
         total_pairs = \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.PRIOR] + \
             Local_Model.F_S_TYPE[feature_senti_pair][Dis_Type.POSTERIOR]
         snt_lkhd *= \
             Local_Model.F_S_TYPE[feature_senti_pair][relative_pos] / total_pairs
+    elif feature_senti_pair in Global_Model.F_S_TYPE:
+        if DEBUG:
+            print 'Global Model'
+        total_pairs = \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.PRIOR] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.POSTERIOR]
+        snt_lkhd *= \
+            Global_Model.F_S_TYPE[feature_senti_pair][relative_pos] / total_pairs
     else:
         snt_lkhd *= 0.5
+    if DEBUG:
+        print 'SENTIMENT RELATIVE:', feature_senti_pair, snt_lkhd, relative_pos
 
     return snt_lkhd, wd_dis_type
 
@@ -517,17 +577,30 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
     : Returns snt_lkhd       : the likelihood of the association
     : Returns wd_dis_type    : the type of word distance between feature and sentiment
     """
-    feature_senti_pair = feature.token.word + '$' + sentiment.token.word
-    # if not Local_Model.FEATURE_SENTI_TYPE.has_key(feature_senti_pair) and feature != sentiment:
-    #     sentiment.token.word = 'sentiment'
-    snt_lkhd, wd_dis_type = cal_likelihood(sentiment, feature)
-    # P(kw-sentiment)
-    Pkw = Local_Model.FS_NUM.get(feature_senti_pair, 1)
-    # if not Local_Model.FEATURE_SENTI.has_key(feature_senti_pair):
-    #     Pkw = Local_Model.FEATURE_SENTI.get(feature.token.word + '$sentiment', 1) / len(Local_Model.F_S_SET[feature.token.word])
-    snt_lkhd = snt_lkhd * Pkw / total_pair_occur
+    f_s_pair = feature.token.word + '$' + sentiment.token.word
+    s_word, f_word = sentiment.token.word, feature.token.word
+    # check if the pair occurred before
+    pair_occurred = True
+    if f_s_pair not in Local_Model.FS_NUM and f_s_pair not in Global_Model.FS_NUM:
+        pair_occurred = False
+
+    # |D(kw-sentiment)| default value is 1
+    Nkw = Local_Model.FS_NUM.get(f_s_pair, 1)
+    if not pair_occurred and ( f_word in Global_Model.F_S_TYPE or f_word in Local_Model.F_S_TYPE):
+        print f_s_pair,'not occurred use feature-class model instead'
+        # if pair did not occur in neither global model or local model. use feature-class pair instead
+        sentiment = Token(sentiment.sntnc,sentiment.phrase,sentiment.wrd_strt_pos,sentiment.wrd_end_pos,Seg_token('sentiment',sentiment.token.flag))
+        Nkw = Local_Model.FS_NUM.get(f_word + '$sentiment', 1) / len(Local_Model.F_S_SET[f_word])
+
+    # P(context | kw-sentiment) * P(kw-sentiment)
+    snt_lkhd, wd_dis_type = cal_likelihood(feature, sentiment)
+    snt_lkhd = snt_lkhd * Nkw / total_pair_occur
+
     # P{amb}
-    snt_lkhd = snt_lkhd * Local_Model.S_AMB.get(sentiment.token.word, 1)
+    if s_word in Global_Model.S_AMB:
+        snt_lkhd = snt_lkhd * Global_Model.S_AMB[s_word]
+    else:
+        snt_lkhd = snt_lkhd * Local_Model.S_AMB.get(s_word, 1)
 
     # Filter compelled association
     if not feature_senti_ruler.abs_dis(feature, sentiment, Local_Model.CERNTAIN_PAIR):
@@ -538,10 +611,10 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
         snt_lkhd = -1
 
     if DEBUG:
-        print sentiment.token.word, Local_Model.S_AMB.get(sentiment.token.word, 1)
-        print 'Sentiment Final Score:', feature_senti_pair, snt_lkhd, Local_Model.F_S_TYPE.get(feature_senti_pair, 1)
+        print s_word, Local_Model.S_AMB.get(sentiment.token.word, 1)
+        print 'Sentiment Final Score:', f_s_pair, snt_lkhd, Local_Model.F_S_TYPE.get(f_s_pair, 1)
         print feature_senti_ruler.abs_pos(feature, sentiment)
-        # Filter direct association
+    # Filter direct association
     if feature_senti_ruler.abs_pos(sentiment, feature):
         return 1, Dis_Type.LESS_THAN_THREE_WORDS
 
@@ -604,11 +677,11 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     : Param obj_name   : object name
     : Param model_name : model path
     """
-    # Load Model
-    load_mdl(model_name)
-    load_glb_mdl('globalmodel1107/global_model.txt')
+    # TODO: Load Model
+    # load_mdl(model_name)
+    # load_glb_mdl('globalmodel1107/global_model.txt')
 
-    entity_class, synonym, sent_dic = load_knw_base()
+    entity_class, synonym, sent_dic, degree_dic = load_knw_base()
 
     # Initial Data
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
@@ -624,9 +697,16 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
         can_rst, feature_sent_pairs = {}, {}
         for ln_after_pr_rule in prior_rules.prior_rules(ln, replace_punc=True):
             # Generate word segments list
-            kws, obj_poss = generate_segment_lst_know(ln_after_pr_rule, synonym, obj_name, entity_class)
-            kws = feature_senti_ruler.conbime_sentiment(kws, sent_dic)
+            kws, obj_poss = seg_ln(ln_after_pr_rule, synonym, obj_name, entity_class)
             if DEBUG:
+                print 'Before Combine'
+                MyLib.print_seg(kws)
+                for kw in kws:
+                    print kw.token.word,
+                print
+            kws = feature_senti_ruler.combine_sentiment(kws, sent_dic, degree_dic)
+            if DEBUG:
+                print 'After Combine'
                 MyLib.print_seg(kws)
                 for obj_pos in obj_poss:
                     print 'obj', obj_pos.phrase,
@@ -653,7 +733,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
                 max_likelihood = -1
                 for obj_pos in obj_poss:
                     # First compare <obj,keyword> pair
-                    likelihood, wd_dis_type = cal_likelihood(kw, obj_pos)
+                    likelihood, wd_dis_type = cal_likelihood(obj_pos, kw)
                     if likelihood > max_likelihood:
                         max_likelihood = likelihood
 

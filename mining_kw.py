@@ -3,12 +3,10 @@
 from __future__ import division
 __author__ = 'congzicun'
 import jieba
+import sys
 import kw_util
 import nltk
 import re
-
-FILE_NAME = 'xiaomi/xiaomi_train_data.txt'
-lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
 
 stop_dic = [ln.strip().decode('utf-8') for ln in open('dictionary/stopwords.txt').readlines()]
 jieba.load_userdict('dictionary/new_words.txt')
@@ -23,7 +21,7 @@ def clean_data(ln):
     return ' '.join(clean_ln)
 
 
-def get_top_kw():
+def get_top_kw(lns):
     kw_dist = nltk.FreqDist()
     kw_flag = {}
     phrases = set()
@@ -84,7 +82,10 @@ def find_kw(kw_dist, phrases):
 
 
 if __name__ == '__main__':
-    kw_dist, phrases, kw_flag = get_top_kw()
+    global lns
+    FILE_NAME = sys.argv[1]
+    lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
+    kw_dist, phrases, kw_flag = get_top_kw(lns)
     chi = find_kw(kw_dist, phrases)
     for k in chi.keys()[:100]:
         flag = '商品特征'

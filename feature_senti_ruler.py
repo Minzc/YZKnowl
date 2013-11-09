@@ -16,7 +16,7 @@ def abs_pos(senti_wrd, feature):
     """
     if feature.wrd_end_pos - senti_wrd.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
         return False
-    if senti_wrd.wrd_end_pos - feature.wrd_strt_pos == 0 and feature.phrase == senti_wrd.phrase:
+    if senti_wrd.wrd_end_pos - feature.wrd_strt_pos < 2 and feature.phrase == senti_wrd.phrase:
         return False
     return False
 
@@ -64,20 +64,42 @@ def ignore_unseen_senti(KW_DIS, sentiment, feature):
 #         high_level_pair = 'feature$sentiment'
 
 
-def conbime_sentiment(kws, senti_dic):
-    pre_kw = None
-    removed_kw = []
-    for kw in kws:
-        if kw.token.word in senti_dic \
-            and pre_kw is not None \
-            and pre_kw.token.word in senti_dic \
-            and kw.wrd_strt_pos == pre_kw.wrd_end_pos \
-            and pre_kw.phrase == kw.phrase:
-            removed_kw.append(pre_kw)
-        pre_kw = kw
-    for kw in removed_kw:
-        kws.remove(kw)
-    return kws
+def combine_sentiment(kws, sent_dic, degree_dic):
+    """amend word segmenting result
+    :Param kws: segment result
+    :senti_dic: sentiment dictionary
+    """
+    kw_stat = []
+    for indx, kw in enumerate(kws):
+        kw_stat.append(True)
+        # check if the keyword only contain single character
+        if len(kw.token.word) == 1:
+            kw_stat[indx] = False
+            if indx > 1:
+                prior_word = kws[indx - 1].token.word
+                if (kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase)\
+                        and (prior_word in degree_dic):
+                    kw.wrd_strt_pos = kws[indx].wrd_strt_pos
+                    kw_stat[indx] = True
+            # elif indx + 1 < len(kws):
+            #     posterior_word = kws[indx + 1].token.word
+            #     if (kw.wrd_strt_pos == kws[indx + 1].wrd_end_pos and kws[indx + 1].phrase == kw.phrase) \
+            #             and (posterior_word in degree_dic):
+            #         kw_stat[indx] = True
+        # check contiguous sentiment word
+        elif indx > 1:
+            prior_word = kws[indx - 1].token.word
+            if prior_word in sent_dic and kw.token.word in sent_dic \
+                    and kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase:
+                kw_stat[indx] = False
+        # remove degree word
+        if kw.token.word in degree_dic:
+            kw_stat[indx] = False
+    clean_kws = []
+    for indx, kw_s in enumerate(kw_stat):
+        if kw_s:
+            clean_kws.append(kws[indx])
+    return clean_kws
 
 
 def obj_feature_close(obj_poss, feature):
