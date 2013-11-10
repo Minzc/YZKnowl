@@ -497,7 +497,7 @@ def cal_likelihood(kw, feature):
         Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
         snt_lkhd = Global_Model.F_S_TYPE[feature_senti_pair][wd_dis_type] / total_pairs
     else:
-        snt_lkhd *= 0.5
+        snt_lkhd *= 0.3
     if DEBUG:
         print 'SENTIMENT WORD:', feature_senti_pair, snt_lkhd, wd_dis_type
         # Sentence Distance Feature
@@ -586,8 +586,7 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
 
     # |D(kw-sentiment)| default value is 1
     Nkw = Local_Model.FS_NUM.get(f_s_pair, 1)
-    if not pair_occurred and ( f_word in Global_Model.F_S_TYPE or f_word in Local_Model.F_S_TYPE):
-        print f_s_pair,'not occurred use feature-class model instead'
+    if not pair_occurred and ( f_word in Local_Model.F_S_TYPE):
         # if pair did not occur in neither global model or local model. use feature-class pair instead
         sentiment = Token(sentiment.sntnc,sentiment.phrase,sentiment.wrd_strt_pos,sentiment.wrd_end_pos,Seg_token('sentiment',sentiment.token.flag))
         Nkw = Local_Model.FS_NUM.get(f_word + '$sentiment', 1) / len(Local_Model.F_S_SET[f_word])
@@ -678,8 +677,8 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     : Param model_name : model path
     """
     # TODO: Load Model
-    # load_mdl(model_name)
-    # load_glb_mdl('globalmodel1107/global_model.txt')
+    load_mdl(model_name)
+    load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic, degree_dic = load_knw_base()
 
