@@ -826,7 +826,7 @@ if __name__ == '__main__':
 
 """
 
-    if sys.argv[1] == 'gen_model':
+    elif sys.argv[1] == 'gen_model':
         if len(sys.argv) > 2:
             gen_model(sys.argv[2])
         else:

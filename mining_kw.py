@@ -32,7 +32,7 @@ def get_top_kw(lns):
         kws = list(jieba.posseg.cut(phrase))
         for kw in kws:
             if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and\
-                    (kw.flag == 'a' or 'n' in kw.flag):
+                    (kw.flag == 'a' or 'n' in kw.flag or 'v' in kw.flag):
                 kw_dist.inc(kw.word.lower())
                 kw_flag[kw.word] = kw.flag
 #    for kw,count in kw_dist.items():
@@ -41,7 +41,8 @@ def get_top_kw(lns):
 
 
 def cal_chi_squar(kw, nw, total, kw_dist, kw_pair_dist):
-    chi = 0
+    total_chi = 0
+    max_chi = -1
     for otherkw, count in kw_dist:
         debug = False
         if otherkw == kw or nw < 10:
@@ -56,8 +57,11 @@ def cal_chi_squar(kw, nw, total, kw_dist, kw_pair_dist):
         nwpg = pg * nw
         if debug:
             print pg, count, nwpg, frq_wg
-        chi += (frq_wg - nwpg) * (frq_wg - nwpg) / nwpg
-    return chi
+        local_chi = (frq_wg - nwpg) * (frq_wg - nwpg) / nwpg
+        total_chi += local_chi
+        if local_chi > max_chi:
+            max_chi = local_chi
+    return total_chi - max_chi
 
 
 def find_kw(kw_dist, phrases):
@@ -83,12 +87,16 @@ def find_kw(kw_dist, phrases):
 
 if __name__ == '__main__':
     global lns
-    FILE_NAME = sys.argv[1]
-    lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
-    kw_dist, phrases, kw_flag = get_top_kw(lns)
-    chi = find_kw(kw_dist, phrases)
-    for k in chi.keys()[:100]:
-        flag = '商品特征'
-        if 'a' in kw_flag[k]:
-            flag = '情感词'
-        print k.encode('utf-8') + '\t\t' + flag
+    if len(sys.argv) < 2:
+        print "usage:"
+        print "python mining_kw.py [inputfile]"
+    else:
+        FILE_NAME = sys.argv[1]
+        lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
+        kw_dist, phrases, kw_flag = get_top_kw(lns)
+        chi = find_kw(kw_dist, phrases)
+        for k in chi.keys()[:100]:
+            flag = '商品特征'
+            if 'a' in kw_flag[k]:
+                flag = '情感词'
+            print k.encode('utf-8') + '\t\t' + flag
