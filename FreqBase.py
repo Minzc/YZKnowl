@@ -25,6 +25,7 @@ TEST_FILE_PAHT = FILE_PREFIX + '_test_data.txt'
 MODEL_FILE_PATH = FILE_PREFIX + '_model.txt'
 OBJ_NAME = u'银鹭花生牛奶'
 
+
 class Local_Model:
     F_S_TYPE = {}
     S_AMB = {}
@@ -35,6 +36,8 @@ class Local_Model:
     F_S_SET = {}
     TRAIN_SET_VOLUME = 0
     TOTAL_NULL_SENTI = 0
+
+
 class Global_Model:
     F_S_TYPE = {}
     FS_NUM = nltk.FreqDist()
@@ -78,9 +81,10 @@ class Token:
 
 
 class Seg_token:
-    def __init__(self, word, flag):
+    def __init__(self, word, flag, origin):
         self.word = word
         self.flag = flag
+        self.origin = origin
 
 
 def load_knw_base():
@@ -190,66 +194,67 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
 
                 kw_pair = kw1.token.word + '$' + kw2.token.word
                 Local_Model.FS_NUM.inc(kw_pair)
+                Local_Model.FS_NUM.inc(instance_class_pair)
                 # Cerntain Pair Feature
-                if feature_senti_ruler.abs_pos(kw1,kw2):
+                if feature_senti_ruler.abs_pos(kw1, kw2):
                     Local_Model.CERNTAIN_PAIR.inc(kw_pair)
-                # Distance Feature
+                    # Distance Feature
                 wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos \
                     = decide_dis_feature_type(kw1, kw2)
 
                 Local_Model.F_S_TYPE.setdefault(kw_pair,
-                                              MyLib.create_and_init_frqdis(
-                                                  Dis_Type.LESS_THAN_ONE_WORDS,
-                                                  Dis_Type.MORE_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_ONE_SENT,
-                                                  Dis_Type.MORE_THAN_ONE_SENT,
-                                                  Dis_Type.LESS_THAN_TWO_PHRASE,
-                                                  Dis_Type.LESS_THAN_FOUR_PHRASE,
-                                                  Dis_Type.MORE_THAN_FOUR_PHRASE,
-                                                  Dis_Type.PRIOR,
-                                                  Dis_Type.POSTERIOR
-                                              ))
+                                                MyLib.create_and_init_frqdis(
+                                                    Dis_Type.LESS_THAN_ONE_WORDS,
+                                                    Dis_Type.MORE_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_ONE_SENT,
+                                                    Dis_Type.MORE_THAN_ONE_SENT,
+                                                    Dis_Type.LESS_THAN_TWO_PHRASE,
+                                                    Dis_Type.LESS_THAN_FOUR_PHRASE,
+                                                    Dis_Type.MORE_THAN_FOUR_PHRASE,
+                                                    Dis_Type.PRIOR,
+                                                    Dis_Type.POSTERIOR
+                                                ))
                 Local_Model.F_S_TYPE.setdefault(instance_class_pair,
-                                              MyLib.create_and_init_frqdis(
-                                                  Dis_Type.LESS_THAN_ONE_WORDS,
-                                                  Dis_Type.MORE_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_ONE_SENT,
-                                                  Dis_Type.MORE_THAN_ONE_SENT,
-                                                  Dis_Type.LESS_THAN_TWO_PHRASE,
-                                                  Dis_Type.LESS_THAN_FOUR_PHRASE,
-                                                  Dis_Type.MORE_THAN_FOUR_PHRASE,
-                                                  Dis_Type.PRIOR,
-                                                  Dis_Type.POSTERIOR
-                                              ))
+                                                MyLib.create_and_init_frqdis(
+                                                    Dis_Type.LESS_THAN_ONE_WORDS,
+                                                    Dis_Type.MORE_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_ONE_SENT,
+                                                    Dis_Type.MORE_THAN_ONE_SENT,
+                                                    Dis_Type.LESS_THAN_TWO_PHRASE,
+                                                    Dis_Type.LESS_THAN_FOUR_PHRASE,
+                                                    Dis_Type.MORE_THAN_FOUR_PHRASE,
+                                                    Dis_Type.PRIOR,
+                                                    Dis_Type.POSTERIOR
+                                                ))
                 Local_Model.F_S_TYPE.setdefault(class_instance_pair,
-                                              MyLib.create_and_init_frqdis(
-                                                  Dis_Type.LESS_THAN_ONE_WORDS,
-                                                  Dis_Type.MORE_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_ONE_SENT,
-                                                  Dis_Type.MORE_THAN_ONE_SENT,
-                                                  Dis_Type.LESS_THAN_TWO_PHRASE,
-                                                  Dis_Type.LESS_THAN_FOUR_PHRASE,
-                                                  Dis_Type.MORE_THAN_FOUR_PHRASE,
-                                                  Dis_Type.PRIOR,
-                                                  Dis_Type.POSTERIOR
-                                              ))
+                                                MyLib.create_and_init_frqdis(
+                                                    Dis_Type.LESS_THAN_ONE_WORDS,
+                                                    Dis_Type.MORE_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_ONE_SENT,
+                                                    Dis_Type.MORE_THAN_ONE_SENT,
+                                                    Dis_Type.LESS_THAN_TWO_PHRASE,
+                                                    Dis_Type.LESS_THAN_FOUR_PHRASE,
+                                                    Dis_Type.MORE_THAN_FOUR_PHRASE,
+                                                    Dis_Type.PRIOR,
+                                                    Dis_Type.POSTERIOR
+                                                ))
 
                 Local_Model.F_S_TYPE.setdefault(class_class_pair,
-                                              MyLib.create_and_init_frqdis(
-                                                  Dis_Type.LESS_THAN_ONE_WORDS,
-                                                  Dis_Type.MORE_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_THREE_WORDS,
-                                                  Dis_Type.LESS_THAN_ONE_SENT,
-                                                  Dis_Type.MORE_THAN_ONE_SENT,
-                                                  Dis_Type.LESS_THAN_TWO_PHRASE,
-                                                  Dis_Type.LESS_THAN_FOUR_PHRASE,
-                                                  Dis_Type.MORE_THAN_FOUR_PHRASE,
-                                                  Dis_Type.PRIOR,
-                                                  Dis_Type.POSTERIOR
-                                              ))
+                                                MyLib.create_and_init_frqdis(
+                                                    Dis_Type.LESS_THAN_ONE_WORDS,
+                                                    Dis_Type.MORE_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_THREE_WORDS,
+                                                    Dis_Type.LESS_THAN_ONE_SENT,
+                                                    Dis_Type.MORE_THAN_ONE_SENT,
+                                                    Dis_Type.LESS_THAN_TWO_PHRASE,
+                                                    Dis_Type.LESS_THAN_FOUR_PHRASE,
+                                                    Dis_Type.MORE_THAN_FOUR_PHRASE,
+                                                    Dis_Type.PRIOR,
+                                                    Dis_Type.POSTERIOR
+                                                ))
                 Local_Model.F_S_TYPE[kw_pair].inc(wd_dis_type)
                 Local_Model.F_S_TYPE[kw_pair].inc(snt_dis_type)
                 Local_Model.F_S_TYPE[kw_pair].inc(phrase_dis_type)
@@ -270,10 +275,10 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
                     Local_Model.F_S_TYPE[class_class_pair].inc(snt_dis_type)
                     Local_Model.F_S_TYPE[class_class_pair].inc(phrase_dis_type)
                     Local_Model.F_S_TYPE[class_class_pair].inc(relative_pos)
-            # Sentiment Ambiguity
+                # Sentiment Ambiguity
             if not_ambiguity:
                 sentiment_ambi.inc(kw1.token.word)
-            # Null Sentiment Feature
+                # Null Sentiment Feature
             if not if_has_senti:
                 f_null_docs.inc(kw1.token.word)
         if not if_has_senti and len(kws) != 0:
@@ -299,10 +304,10 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
     print '#TOTAL_DOC'
     print str(total_null_docs) + '$' + str(total_docs)
     print '#CERTAIN_PAIR_DIS'
-    for kw_pair,count in Local_Model.CERNTAIN_PAIR.items():
+    for kw_pair, count in Local_Model.CERNTAIN_PAIR.items():
         # Magic number
         if count > 5:
-            print kw_pair.encode('utf-8')+'$'+str(count)
+            print kw_pair.encode('utf-8') + '$' + str(count)
 
 
 def load_glb_mdl(infile):
@@ -333,14 +338,15 @@ def load_glb_mdl(infile):
             Global_Model.F_S_TYPE[fs_pair].inc(feature_type, int(value))
         elif ln_elemnts[0] == 'FS_DIST'.lower():
             fs_pair = ln_elemnts[1] + '$' + ln_elemnts[2]
-            Global_Model.FS_NUM.inc(fs_pair,int(value))
+            Global_Model.FS_NUM.inc(fs_pair, int(value))
         elif ln_elemnts[0] == 'AMBI_DIST'.lower():
             Global_Model.S_AMB[ln_elemnts[1]] = int(value)
         elif ln_elemnts[0] == 'KW_DIST'.lower():
             Global_Model.KW_DIS[ln_elemnts[1]] = int(value)
     for kw in Global_Model.S_AMB.keys():
         if kw in Global_Model.KW_DIS:
-            Global_Model.S_AMB[kw] = 1 - Global_Model.S_AMB[kw] / (Global_Model.S_AMB[kw] + Global_Model.KW_DIS.get(kw,0))
+            Global_Model.S_AMB[kw] = 1 - Global_Model.S_AMB[kw] / (
+            Global_Model.S_AMB[kw] + Global_Model.KW_DIS.get(kw, 0))
 
 
 def load_mdl(infile=MODEL_FILE_PATH):
@@ -396,8 +402,8 @@ def load_mdl(infile=MODEL_FILE_PATH):
             TOTAL_NULL_SENTI = int(total_null_doc)
             TRAIN_SET_VOLUME = int(total_doc)
         elif feature_type == 6:
-            feature,sentiment,count = ln.strip().split('$')
-            Local_Model.CERNTAIN_PAIR.inc(feature+'$'+sentiment,int(count))
+            feature, sentiment, count = ln.strip().split('$')
+            Local_Model.CERNTAIN_PAIR.inc(feature + '$' + sentiment, int(count))
 
 
 def seg_ln(ln, synonym, obj_name, entity_class):
@@ -420,7 +426,7 @@ def seg_ln(ln, synonym, obj_name, entity_class):
                 keyword = phrase[start:end]
                 if synonym[phrase[start:end]] == obj_name:
                     obj_token = Token(index, phrase_position, abs_word_start, abs_word_end,
-                                      Seg_token(synonym[keyword], 'obj'))
+                                      Seg_token(synonym[keyword], 'obj',keyword))
                     kws.append(obj_token)
                     obj_poss.append(obj_token)
                 else:
@@ -430,7 +436,7 @@ def seg_ln(ln, synonym, obj_name, entity_class):
                         flag = entity_class[synonym[keyword]][0]
                         # TODO: flag 需要细化
                     kws.append(
-                        Token(index, phrase_position, abs_word_start, abs_word_end, Seg_token(synonym[keyword], flag)))
+                        Token(index, phrase_position, abs_word_start, abs_word_end, Seg_token(synonym[keyword], flag, keyword)))
             pre_phrases_len += len(phrase)
             phrase_position += 1
     return kws, obj_poss
@@ -492,9 +498,9 @@ def cal_likelihood(kw, feature):
         if DEBUG:
             print 'Global Model'
         total_pairs = \
-        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
-        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
-        Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_ONE_WORDS] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.LESS_THAN_THREE_WORDS] + \
+            Global_Model.F_S_TYPE[feature_senti_pair][Dis_Type.MORE_THAN_THREE_WORDS]
         snt_lkhd = Global_Model.F_S_TYPE[feature_senti_pair][wd_dis_type] / total_pairs
     else:
         snt_lkhd *= 0.3
@@ -544,7 +550,7 @@ def cal_likelihood(kw, feature):
         snt_lkhd *= 0.3
     if DEBUG:
         print 'SENTIMENT PHRASE:', feature_senti_pair, snt_lkhd, phrase_dis_type
-    # Relative Position Feature
+        # Relative Position Feature
     if feature_senti_pair in Local_Model.F_S_TYPE:
         if DEBUG:
             print 'Local Model'
@@ -582,13 +588,14 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
     # check if the pair occurred before
     pair_occurred = True
     if f_s_pair not in Local_Model.FS_NUM and f_s_pair not in Global_Model.FS_NUM:
-        pair_occurred = False
+        pair_occurred = True
 
     # |D(kw-sentiment)| default value is 1
     Nkw = Local_Model.FS_NUM.get(f_s_pair, 1)
-    if not pair_occurred and ( f_word in Local_Model.F_S_TYPE):
+    if not pair_occurred and (f_word in Local_Model.F_S_SET):
         # if pair did not occur in neither global model or local model. use feature-class pair instead
-        sentiment = Token(sentiment.sntnc,sentiment.phrase,sentiment.wrd_strt_pos,sentiment.wrd_end_pos,Seg_token('sentiment',sentiment.token.flag))
+        sentiment = Token(sentiment.sntnc, sentiment.phrase, sentiment.wrd_strt_pos, sentiment.wrd_end_pos,
+                          Seg_token('sentiment', sentiment.token.flag, sentiment.token.origin))
         Nkw = Local_Model.FS_NUM.get(f_word + '$sentiment', 1) / len(Local_Model.F_S_SET[f_word])
 
     # P(context | kw-sentiment) * P(kw-sentiment)
@@ -596,10 +603,7 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
     snt_lkhd = snt_lkhd * Nkw / total_pair_occur
 
     # P{amb}
-    if s_word in Global_Model.S_AMB:
-        snt_lkhd = snt_lkhd * Global_Model.S_AMB[s_word]
-    else:
-        snt_lkhd = snt_lkhd * Local_Model.S_AMB.get(s_word, 1)
+    snt_lkhd = snt_lkhd * min(Global_Model.S_AMB.get(s_word, 1), Local_Model.S_AMB.get(s_word, 1))
 
     # Filter compelled association
     if not feature_senti_ruler.abs_dis(feature, sentiment, Local_Model.CERNTAIN_PAIR):
@@ -610,12 +614,16 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
         snt_lkhd = -1
 
     if DEBUG:
-        print s_word, Local_Model.S_AMB.get(sentiment.token.word, 1)
+        print s_word, Global_Model.S_AMB.get(sentiment.token.word, 1)
         print 'Sentiment Final Score:', f_s_pair, snt_lkhd, Local_Model.F_S_TYPE.get(f_s_pair, 1)
         print feature_senti_ruler.abs_pos(feature, sentiment)
-    # Filter direct association
-    if feature_senti_ruler.abs_pos(sentiment, feature):
-        return 1, Dis_Type.LESS_THAN_THREE_WORDS
+        print 'abs pos', feature_senti_ruler.abs_pos(sentiment,
+                                                     feature), sentiment.wrd_end_pos - feature.wrd_strt_pos < 2, feature.phrase == sentiment.phrase
+        # Filter direct association
+    if feature_senti_ruler.abs_pos(sentiment, feature) and Global_Model.S_AMB.get(sentiment.token.word, 1) > 0.3:
+        snt_lkhd *= 2
+        wd_dis_type = Dis_Type.LESS_THAN_THREE_WORDS
+
 
     return snt_lkhd, wd_dis_type
 
@@ -635,12 +643,15 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
         # feature-sentiment pair has not been seen in train set
         if likelihood != -1:
             fs_pair.append(
-                (likelihood, Dis_Type.MORE_THAN_THREE_WORDS - wd_dis_type, feature.token.word, sentiment.token.word))
+                (likelihood, Dis_Type.MORE_THAN_THREE_WORDS - wd_dis_type, feature.token.origin, sentiment.token.origin))
 
     # append null association
     for feature in feature_list:
         # TODO: try different tactics, problem left
-        null_likelihood = 0.5 * 0.5 * 0.3 * 0.5 * Local_Model.F_NULL.get(feature.token.word, 1) / total_pair_occur * ALPHA
+        if DEBUG:
+            print 'null', Local_Model.F_NULL.get(feature.token.word, 1)
+        null_likelihood = 0.3 * 0.5 * 0.3 * 0.5 * Local_Model.F_NULL.get(feature.token.word,
+                                                                         1) / total_pair_occur * ALPHA
         if DEBUG:
             print 'Feature null', \
                 feature.token.word, \
@@ -658,7 +669,7 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
     used_sentiment, used_feature = set(), set()
     for likelihood, pair_score, feature, sentiment in sorted_fs_pair:
         if feature not in used_feature and sentiment not in used_sentiment and likelihood != -1:
-            rst_fs_pair[feature] = (sentiment, pair_score)
+            rst_fs_pair[feature] = (sentiment, likelihood)
             used_sentiment.add(sentiment)
             used_feature.add(feature)
     return rst_fs_pair
@@ -678,7 +689,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     """
     # TODO: Load Model
     load_mdl(model_name)
-    load_glb_mdl('globalmodel1107/global_model.txt')
+    # load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic, degree_dic = load_knw_base()
 
@@ -687,7 +698,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     total_pair_occur = sum(Local_Model.FS_NUM.values())
     cal_alpha()
     result = Result()
-
+    local_feature = set(ln.decode('utf-8').strip().lower() for ln in open('local_feature.txt').readlines())
     # Classify Test Data
     for ln in lns:
         ln = re.sub('//@.+', '', ln)
@@ -700,9 +711,12 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
             if DEBUG:
                 print 'Before Combine'
                 MyLib.print_seg(kws)
+                for obj_pos in obj_poss:
+                    print 'obj', obj_pos.phrase,
                 for kw in kws:
                     print kw.token.word,
                 print
+
             kws = feature_senti_ruler.combine_sentiment(kws, sent_dic, degree_dic)
             if DEBUG:
                 print 'After Combine'
@@ -720,6 +734,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
 
             # Loop over all the candidate keywords,
             # select sentiment and feature list
+            has_senti = False
             for kw in kws:
                 if kw.token.word == obj_name:
                     continue
@@ -733,13 +748,22 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
                 for obj_pos in obj_poss:
                     # First compare <obj,keyword> pair
                     likelihood, wd_dis_type = cal_likelihood(obj_pos, kw)
+                    # if feature_senti_ruler.abs_dis(obj_pos, kw, Local_Model.CERNTAIN_PAIR):
                     if likelihood > max_likelihood:
                         max_likelihood = likelihood
 
                 likelihood = max_likelihood
+                # ignore unseen feature
+                if feature_senti_ruler.ignore_unseen_feature(Local_Model.KW_DIS, kw):
+                    likelihood = 0
+
+                likelihood *= Local_Model.FS_NUM.get(obj_name + '$' + kw.token.word, 0)
 
                 if can_rst.get(kw.token.word, 0) < likelihood:
                     can_rst[kw.token.word] = likelihood
+            # remove none optional sentences
+            if len(sentiment_list) == 0:
+                continue
 
             tmp_pairs = select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, obj_poss)
             # Combine Results
@@ -749,12 +773,13 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
                 feature_sent_pairs[key] = senti_value
             feature_sent_pairs = dict(list(feature_sent_pairs.items()) + list(tmp_pairs.items()))
         can_rst = sorted(can_rst.items(), key=operator.itemgetter(1), reverse=True)
-        MyLib.merge_rst(ln, sent_dic, can_rst, feature_sent_pairs, result)
+        if True:
+            print ln.encode('utf-8')
+            for kw, value in feature_sent_pairs.items():
+                print '(', kw.encode('utf-8'), ',', value[0].encode('utf-8'), value[1], ')'
+        MyLib.merge_rst(ln, sent_dic, can_rst, feature_sent_pairs, result, synonym, local_feature)
     MyLib.print_rst(result)
-
-
-
-
+    print 'ALPHA is ' + str(ALPHA)
 
 
 def replace_mention(nick_name_lst, obj_name, ln):
@@ -769,16 +794,27 @@ def replace_mention(nick_name_lst, obj_name, ln):
 #
 
 
-def train_data_clean(infile):
+def train_data_clean(infile, obj_name):
     ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐'
-        , u'活动', u'好友' , u'支持' , u'话题' , u'详情' , u'地址' , u'赢' , u'抽奖' , u'好运' , u'中奖']
-    lns = [ln.decode('utf-8') for ln in open(infile).readlines()]
+        , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
+    lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
+    urls = set()
     for ln in lns:
         ad_counter = 0
+        ln = re.sub('//@.+', '', ln)
+        tmpurls = re.findall(r'http:[^ ]+[\s$]', ln)
+        if len(tmpurls) > 1:
+            urls |= set(tmpurls)
+            continue
+        titles = re.findall(ur'《.*》', ln)
+        for title in titles:
+            if title != obj_name:
+                ln = re.sub(title, ' ', ln)
+
         if len(kw_util.regex_mention.sub("", ln).strip()) == 0:
             continue
-        ln = re.sub('//@.+', '', ln)
+
         tmp_ln = kw_util.tweet_filter(ln)
         for ad_word in ad_words:
             if ad_word in ln:
@@ -788,7 +824,7 @@ def train_data_clean(infile):
 
         if ad_counter > 2:
             continue
-        if not clean_lns.has_key(tmp_ln):
+        if tmp_ln not in clean_lns:
             clean_lns[tmp_ln] = ln
     for ln in clean_lns.values():
         print ln.strip().encode('utf-8')

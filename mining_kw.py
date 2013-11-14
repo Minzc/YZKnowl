@@ -1,12 +1,15 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import division
+
 __author__ = 'congzicun'
 import jieba
 import sys
 import kw_util
 import nltk
 import re
+import operator
+
 
 stop_dic = [ln.strip().decode('utf-8') for ln in open('dictionary/stopwords.txt').readlines()]
 jieba.load_userdict('dictionary/new_words.txt')
@@ -31,23 +34,25 @@ def get_top_kw(lns):
     for phrase in phrases:
         kws = list(jieba.posseg.cut(phrase))
         for kw in kws:
-            if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and\
-                    (kw.flag == 'a' or 'n' in kw.flag or 'v' in kw.flag):
+            # if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and\
+            #         (kw.flag == 'a' or 'n' in kw.flag or 'v' in kw.flag):
+            if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and('n' in kw.flag or 'v' in kw.flag or 'a' in kw.flag):
                 kw_dist.inc(kw.word.lower())
                 kw_flag[kw.word] = kw.flag
-#    for kw,count in kw_dist.items():
-#        print kw.encode('utf-8'),count
+            #    for kw,count in kw_dist.items():
+            #        print kw.encode('utf-8'),count
     return kw_dist, phrases, kw_flag
 
 
 def cal_chi_squar(kw, nw, total, kw_dist, kw_pair_dist):
     total_chi = 0
     max_chi = -1
+    kw_w = ''
     for otherkw, count in kw_dist:
         debug = False
-        if otherkw == kw or nw < 10:
+        if otherkw == kw or nw < 2:
             continue
-        pg = count/total
+        pg = count / total
         frq_wg = kw_pair_dist[kw + '$' + otherkw]
         if frq_wg == 0:
             continue
@@ -61,7 +66,8 @@ def cal_chi_squar(kw, nw, total, kw_dist, kw_pair_dist):
         total_chi += local_chi
         if local_chi > max_chi:
             max_chi = local_chi
-    return total_chi - max_chi
+            kw_w = otherkw
+    return total_chi
 
 
 def find_kw(kw_dist, phrases):
@@ -79,10 +85,30 @@ def find_kw(kw_dist, phrases):
     kw_chi = nltk.FreqDist()
     for kw, count in kw_dist.items():
         kw_chi.inc(kw, cal_chi_squar(kw, count, total_kw, kw_dist.items()[:100], kw_pair_dist))
-#    kw_chi.inc(u'先人',cal_chi_squar(u'先人',1,total_kw,kw_dist.items()[:100],kw_pair_dist))
-#    for k,value in kw_chi.items():
-#        print k,value
+    #    kw_chi.inc(u'先人',cal_chi_squar(u'先人',1,total_kw,kw_dist.items()[:100],kw_pair_dist))
+    #    for k,value in kw_chi.items():
+    #        print k,value
     return kw_chi
+
+
+def tf_idf(lns):
+    kw_frq = nltk.FreqDist()
+    phrases = set()
+    for ln in lns:
+        ln = kw_util.tweet_filter(clean_data(re.sub('#(.+?)#', ' ', ln)))
+        phrases |= set(ln.split(' '))
+    for phrase in phrases:
+        kws = list(jieba.posseg.cut(phrase))
+        for kw in kws:
+            if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and('n' in kw.flag or 'v' in kw.flag or 'a' in kw.flag):
+                kw_frq.inc(kw.word)
+    tfidf = {}
+    for k, v in kw_frq.items():
+        tfidf[k] = v * jieba.analyse.idf_freq.get(k, jieba.analyse.median_idf)
+    tf_idf_srtd = sorted(tfidf.iteritems(), key=operator.itemgetter(1), reverse=True)
+    for k, v in tf_idf_srtd:
+        print k.encode('utf-8')
+    return tf_idf_srtd
 
 
 if __name__ == '__main__':
@@ -90,8 +116,8 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print "usage:"
         print "python mining_kw.py [inputfile]"
-    else:
-        FILE_NAME = sys.argv[1]
+    elif sys.argv[1] == 'chi':
+        FILE_NAME = sys.argv[2]
         lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
         kw_dist, phrases, kw_flag = get_top_kw(lns)
         chi = find_kw(kw_dist, phrases)
@@ -99,4 +125,14 @@ if __name__ == '__main__':
             flag = '商品特征'
             if 'a' in kw_flag[k]:
                 flag = '情感词'
-            print k.encode('utf-8') + '\t\t' + flag
+            print k.encode('utf-8')
+    elif sys.argv[1] == 'tfidf':
+        FILE_NAME = sys.argv[2]
+        lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
+        tf_idf(lns)
+    elif sys.argv[1] == 'clean':
+        FILE_NAME = sys.argv[2]
+        lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
+        for ln in lns:
+            ln = clean_data(ln)
+            print ln.encode('utf-8')

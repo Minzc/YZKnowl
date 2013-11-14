@@ -149,29 +149,45 @@ def print_rst(result):
         print '-----------------------------------------------------------'
 
 
-def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result):
+def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result, synonym, local_feature):
     feature = ''
+    counter = 0
     for f, score in feature_rst:
+        counter += 1
+        if len(feature_rst) == 1 and f not in local_feature:
+            break
         if f in feature_sent_pairs and 'null' not in feature_sent_pairs[f][0]:
             feature = f
             break
+        if counter > 2 and f not in local_feature:
+            break
+
     if feature == '':
         return
-    sentiment = feature_sent_pairs[feature][0]
+    sentiment = synonym.get(feature_sent_pairs[feature][0], '')
+    origin_senti = feature_sent_pairs[feature][0]
     result.FEATURE.inc(feature)
-    if sent_dic[sentiment] == 'p':
+    if sentiment not in sent_dic:
+        sentiment = ''
+        origin_senti = ''
         result.POS_FEATURE.setdefault(sentiment, nltk.FreqDist())
         result.POS_FEATURE[sentiment].inc(feature)
         result.FEATURE_POS.setdefault(feature, nltk.FreqDist())
         result.FEATURE_POS[feature].inc(sentiment)
         result.POS_TAGS.inc(sentiment)
+    elif sent_dic[sentiment] == 'p':
+        result.POS_FEATURE.setdefault(origin_senti, nltk.FreqDist())
+        result.POS_FEATURE[origin_senti].inc(feature)
+        result.FEATURE_POS.setdefault(feature, nltk.FreqDist())
+        result.FEATURE_POS[feature].inc(origin_senti)
+        result.POS_TAGS.inc(origin_senti)
     elif sent_dic[sentiment] == 'n':
         result.FEATURE_NEG.setdefault(feature, nltk.FreqDist())
-        result.FEATURE_NEG[feature].inc(sentiment)
-        result.NEG_FEATURE.setdefault(sentiment, nltk.FreqDist())
-        result.NEG_FEATURE[sentiment].inc(feature)
-        result.NEG_TAGS.inc(sentiment)
+        result.FEATURE_NEG[feature].inc(origin_senti)
+        result.NEG_FEATURE.setdefault(origin_senti, nltk.FreqDist())
+        result.NEG_FEATURE[origin_senti].inc(feature)
+        result.NEG_TAGS.inc(origin_senti)
 
-    result.TAG_TWEETS.setdefault(feature + '$' + sentiment, [])
-    result.TAG_TWEETS[feature + '$' + sentiment].append(ln)
+    result.TAG_TWEETS.setdefault(feature + '$' + origin_senti, [])
+    result.TAG_TWEETS[feature + '$' + origin_senti].append(ln)
     result.TOTAL_TWEETS += 1

@@ -13,11 +13,13 @@ def test_gen_model():
     FreqBase.DEBUG = True
     FreqBase.gen_model('testCodeCrrct.txt')
 
+
 def test_load_knw_base():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
 #    print class_entity['物超所值'][0]
     print u'冰冰' in synonym.keys()
     print len('好'.decode('utf-8'))
+
 
 def test_gen_model_get_kws_knwbase():
     class_entity,synonym,sent_dic = FreqBase.load_knw_base()
@@ -37,7 +39,8 @@ def test_load_model():
 def test_classify():
     FreqBase.DEBUG = True
     FreqBase.OBJ_NAME = u'伊利谷粒多'
-    FreqBase.class_new('testCodeCrrct.txt',u'小米手机','model.txt')
+    FreqBase.class_new('testCodeCrrct.txt', u'恒大', 'model.txt')
+
 
 def format_know_base():
     lns = [ln.decode('utf-8').strip().lower()
@@ -45,6 +48,8 @@ def format_know_base():
     for ln in lns:
         ln_seg = ln.split('\t')
         print ln_seg[0].strip().encode('utf-8')+'\t'+ln_seg[1].strip().encode('utf-8')+'\t'+ln_seg[2].strip().encode('utf-8')
+
+
 def testPuncReplace():
     ln = 'good！a！b。c，d？e（f）)k)g。。h～g；h“j”i'
     ln =  kw_util.punc_replace(ln.decode('utf-8'))
