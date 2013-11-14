@@ -7,7 +7,7 @@ echo "# Object Name     : $2"
 echo '############################################'
 ###########CLEAN##########
 echo '\033[31m Cleaning Data'
-/usr/local/bin/python2.7 FreqBase.py clean $FILE_PAHT > tmp
+/usr/local/bin/python2.7 FreqBase.py clean $FILE_PAHT $OBJE_NAME> tmp
 echo '\033[31m Finish Cleaning'
 echo '        |'
 ###########SORT############

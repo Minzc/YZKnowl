@@ -800,6 +800,7 @@ def train_data_clean(infile, obj_name):
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
     urls = set()
+    uniset = set()
     for ln in lns:
         ad_counter = 0
         ln = re.sub('//@.+', '', ln)
@@ -809,8 +810,8 @@ def train_data_clean(infile, obj_name):
             continue
         titles = re.findall(ur'《.*》', ln)
         for title in titles:
-            if title != obj_name:
-                ln = re.sub(title, ' ', ln)
+            if title != obj_name and len(title) > 1:
+                ln = ln.replace(title, ' ')
 
         if len(kw_util.regex_mention.sub("", ln).strip()) == 0:
             continue
@@ -824,8 +825,13 @@ def train_data_clean(infile, obj_name):
 
         if ad_counter > 2:
             continue
-        if tmp_ln not in clean_lns:
+        word_dic = []
+        for wd in list(jieba.cut(ln)):
+            if len(wd) > 1:
+                word_dic.append(wd)
+        if ' '.join(word_dic) not in uniset and tmp_ln not in clean_lns:
             clean_lns[tmp_ln] = ln
+            uniset.add(' '.join(word_dic))
     for ln in clean_lns.values():
         print ln.strip().encode('utf-8')
 
@@ -877,4 +883,4 @@ if __name__ == '__main__':
     elif sys.argv[1] == 'test':
         class_new()
     elif sys.argv[1] == 'clean':
-        train_data_clean(sys.argv[2])
+        train_data_clean(sys.argv[2], sys.argv[3].decode('utf-8'))

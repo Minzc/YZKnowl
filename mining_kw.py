@@ -135,4 +135,4 @@ if __name__ == '__main__':
         lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
         for ln in lns:
             ln = clean_data(ln)
-            print ln.encode('utf-8')
+            print ln.encode('utf-8').strip()
