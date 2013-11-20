@@ -1,10 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import division
+from scripts.algo import FreqBase
+from scripts.util import kw_util
+
 __author__ = 'congzicun'
 import re
-import FreqBase
-import kw_util
+
 STOP_DIC = 'stopwords.txt'
 lns = [ln.decode('utf-8').lower() for ln in open('testCodeCrrct.txt').readlines()]
 
