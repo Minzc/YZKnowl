@@ -152,17 +152,13 @@ def print_rst(result):
         print '-----------------------------------------------------------'
 
 
-def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result, synonym, local_feature):
+def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result, synonym):
     feature = ''
     counter = 0
     for f, score in feature_rst:
         counter += 1
-        if len(feature_rst) == 1 and f not in local_feature:
-            break
         if f in feature_sent_pairs and 'null' not in feature_sent_pairs[f][0]:
             feature = f
-            break
-        if counter > 2 and f not in local_feature:
             break
 
     if feature == '':

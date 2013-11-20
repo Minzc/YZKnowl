@@ -229,7 +229,7 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
 def cal_alpha():
     p_cover = 0.7
     global ALPHA
-    ALPHA = (TOTAL_NULL_SENTI + (p_cover - 1) * TRAIN_SET_VOLUME) / (p_cover * TOTAL_NULL_SENTI)
+    ALPHA = (Local_Model.TOTAL_NULL_SENTI + (p_cover - 1) * Local_Model.TRAIN_SET_VOLUME) / (p_cover * Local_Model.TOTAL_NULL_SENTI)
 
 
 def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PATH, ):
@@ -239,7 +239,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     : Param model_name : model path
     """
     # TODO: Load Model
-    file_loader.load_mdl(model_name)
+    Local_Model = file_loader.load_mdl(model_name)
     # load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic, degree_dic = file_loader.load_knw_base()
@@ -249,12 +249,9 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     total_pair_occur = sum(Local_Model.FS_NUM.values())
     cal_alpha()
     result = Result()
-    local_feature = set(ln.decode('utf-8').strip().lower() for ln in open('local_feature.txt').readlines())
     # Classify Test Data
     for ln in lns:
         ln = re.sub('//@.+', '', ln)
-        #        ln = replace_mention([u'@银鹭花生牛奶',u'@林俊杰-银鹭花生牛奶'],OBJ_NAME,ln)
-        emoticons = [emoticon for emoticon in re.findall(r"\[.+?\]", ln)]
         can_rst, feature_sent_pairs = {}, {}
         for ln_after_pr_rule in prior_rules.prior_rules(ln, replace_punc=True):
             # Generate word segments list
@@ -328,7 +325,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
             print ln.encode('utf-8')
             for kw, value in feature_sent_pairs.items():
                 print '(', kw.encode('utf-8'), ',', value[0].encode('utf-8'), value[1], ')'
-        MyLib.merge_rst(ln, sent_dic, can_rst, feature_sent_pairs, result, synonym, local_feature)
+        MyLib.merge_rst(ln, sent_dic, can_rst, feature_sent_pairs, result, synonym)
     MyLib.print_rst(result)
     print 'ALPHA is ' + str(ALPHA)
 
@@ -389,31 +386,3 @@ def train_data_clean(infile, obj_name):
 
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 1:
-        print """Usage: python FreqBase.py <cmd> <input_file> where
-<input_file> line delimited text;
-<cmd> = [gen_model|classify|gen_kw_frq|segment]
-\tgen_model <input_file> <obj_name> [user_dic], generate model;
-\tgen_kw_frq <input_file> <obj_name> [user_dic], generate keyword frequency statistics
-\tsegment <infile> <obj_name> [user_dic], segment sentences
-\tclassify <infile> <obj_name> <model_file> <kw_freq_file> [user_dic], classify test data
-
-"""
-
-    elif sys.argv[1] == 'gen_model':
-        if len(sys.argv) > 2:
-            trainer.gen_model(sys.argv[2])
-        else:
-            trainer.gen_model()
-    elif sys.argv[1] == 'classify':
-        if len(sys.argv) < 4:
-            class_new(sys.argv[2])
-        else:
-            class_new(sys.argv[2], sys.argv[3].decode('utf-8'), sys.argv[4])
-    elif sys.argv[1] == 'segment':
-        seg_files(sys.argv[2], sys.argv[3])
-    elif sys.argv[1] == 'test':
-        class_new()
-    elif sys.argv[1] == 'clean':
-        train_data_clean(sys.argv[2], sys.argv[3].decode('utf-8'))

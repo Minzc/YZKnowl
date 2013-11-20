@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from __future__ import division
 __author__ = 'congzicun'
 KNWB_PATH = 'knowl-base.txt'
 from scripts.model.model import *
@@ -48,6 +49,7 @@ def load_knw_base():
                 synonym[instance] = entity
     return entity_class, synonym, sent_dic, degree_dic
 
+
 def load_glb_mdl(infile):
     """Load global model
     :Param infile: model file path
@@ -85,7 +87,7 @@ def load_glb_mdl(infile):
         if kw in Global_Model.KW_DIS:
             Global_Model.S_AMB[kw] = 1 - Global_Model.S_AMB[kw] / (
                 Global_Model.S_AMB[kw] + Global_Model.KW_DIS.get(kw, 0))
-
+    return Global_Model
 
 
 def load_mdl(infile=MODEL_FILE_PATH):
@@ -126,6 +128,8 @@ def load_mdl(infile=MODEL_FILE_PATH):
                 Local_Model.F_S_SET[kw1].add(kw2)
         elif feature_type == 2:
             sent_kw, not_amb_doc, total_doc = ln.strip().split('$')
+            if(sent_kw == u'发奋'):
+                print 'ok'
             Local_Model.S_AMB[sent_kw] = int(not_amb_doc) / int(total_doc)
         elif feature_type == 3:
             feature, null_senti, total_doc = ln.strip().split('$')
@@ -138,8 +142,9 @@ def load_mdl(infile=MODEL_FILE_PATH):
             global TRAIN_SET_VOLUME
 
             total_null_doc, total_doc = ln.strip().split('$')
-            TOTAL_NULL_SENTI = int(total_null_doc)
-            TRAIN_SET_VOLUME = int(total_doc)
+            Local_Model.TOTAL_NULL_SENTI = int(total_null_doc)
+            Local_Model.TRAIN_SET_VOLUME = int(total_doc)
         elif feature_type == 6:
             feature, sentiment, count = ln.strip().split('$')
             Local_Model.CERNTAIN_PAIR.inc(feature + '$' + sentiment, int(count))
+    return Local_Model
