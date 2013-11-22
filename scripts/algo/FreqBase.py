@@ -239,6 +239,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     # load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic, degree_dic = file_loader.load_knw_base()
+    synonym[obj_name] = obj_name
 
     # Initial Data
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
@@ -343,6 +344,7 @@ def train_data_clean(infile):
     ads = ['视频', '投票', '【', '《', '博文', '分享自']
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
+    total_dic = {kw.decode('utf-8').strip() for kw in open('dictionary/real_final_dic.txt').readlines()}
     uniset = set()
     for ln in lns:
         #######REPOST CONTENT#####
@@ -369,9 +371,9 @@ def train_data_clean(infile):
         if ad_counter > 2:
             continue
         word_dic = []
-        for wd in list(jieba.cut(ln)):
-            if len(wd) > 1:
-                word_dic.append(wd)
+        kwposes = kw_util.backward_maxmatch(ln, total_dic, 100, 1)
+        for kwpos in kwposes:
+            word_dic.append(ln[kwpos[0]:kwpos[1]])
         if ' '.join(word_dic) not in uniset and tmp_ln not in clean_lns:
             clean_lns[tmp_ln] = ln
             uniset.add(' '.join(word_dic))
