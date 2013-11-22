@@ -6,7 +6,7 @@ import nltk
 import re
 from scripts.util import kw_util
 from scripts.model.model import *
-DEBUG = True
+DEBUG = False
 
 def combine_kw(kw_w_lst, obj_name):
     combined_w = []

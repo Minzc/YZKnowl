@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 __author__ = 'congzicun'
-from scripts.ruler import feature_senti_ruler
+from scripts.ruler import fs_ruler
 from scripts.util import MyLib
 from scripts.ruler import prior_rules
 from scripts.model.model import *
@@ -11,9 +11,7 @@ from scripts.util import kw_util
 from scripts.util.MyLib import decide_dis_feature_type
 import jieba
 import operator
-import sys
 import re
-import trainer
 
 ALPHA = 1
 DEBUG = False
@@ -157,25 +155,23 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
     snt_lkhd = snt_lkhd * min(Global_Model.S_AMB.get(s_word, 1), Local_Model.S_AMB.get(s_word, 1))
 
     # Filter compelled association
-    if not feature_senti_ruler.abs_dis(feature, sentiment, Local_Model.CERNTAIN_PAIR):
+    if not fs_ruler.abs_dis(feature, sentiment, Local_Model.CERNTAIN_PAIR):
         if DEBUG:
             print feature.token.word, sentiment.token.word, 'ABS_DIS'
         snt_lkhd = -1
-    if feature_senti_ruler.ignore_unseen_senti(Local_Model.KW_DIS, sentiment, feature):
+    if fs_ruler.ignore_unseen_senti(Local_Model.KW_DIS, sentiment, feature):
         snt_lkhd = -1
 
     if DEBUG:
         print s_word, Global_Model.S_AMB.get(sentiment.token.word, 1)
         print 'Sentiment Final Score:', f_s_pair, snt_lkhd, Local_Model.F_S_TYPE.get(f_s_pair, 1)
-        print feature_senti_ruler.abs_pos(feature, sentiment)
-        print 'abs pos', feature_senti_ruler.abs_pos(sentiment,
+        print fs_ruler.abs_pos(feature, sentiment)
+        print 'abs pos', fs_ruler.abs_pos(sentiment,
                                                      feature), sentiment.wrd_end_pos - feature.wrd_strt_pos < 2, feature.phrase == sentiment.phrase
         # Filter direct association
-    if feature_senti_ruler.abs_pos(sentiment, feature) and Global_Model.S_AMB.get(sentiment.token.word, 1) > 0.3:
+    if fs_ruler.abs_pos(sentiment, feature) and Global_Model.S_AMB.get(sentiment.token.word, 1) > 0.3:
         snt_lkhd *= 2
         wd_dis_type = Dis_Type.LESS_THAN_THREE_WORDS
-
-
     return snt_lkhd, wd_dis_type
 
 
@@ -187,7 +183,7 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
     : Return rst_fs_pair     : map object. Key -> feature word ; Value -> (feature_object, sentiment_object)
     """
     possible_pairs = [(f, s) for f in feature_list for s in sentiment_list if
-                      feature_senti_ruler.obj_feature_close(obj_poss, f) and f.token.flag != u'商品']
+                      fs_ruler.obj_feature_close(obj_poss, f) and f.token.flag != u'商品']
     fs_pair = []
     for feature, sentiment in possible_pairs:
         likelihood, wd_dis_type = cal_feature_sent_score(feature, sentiment, total_pair_occur)
@@ -265,7 +261,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
                     print kw.token.word,
                 print
 
-            kws = feature_senti_ruler.combine_sentiment(kws, sent_dic, degree_dic)
+            kws = fs_ruler.combine_sentiment(kws, sent_dic, degree_dic)
             if DEBUG:
                 print 'After Combine'
                 MyLib.print_seg(kws)
@@ -282,7 +278,6 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
 
             # Loop over all the candidate keywords,
             # select sentiment and feature list
-            has_senti = False
             for kw in kws:
                 if kw.token.word == obj_name:
                     continue
@@ -302,7 +297,7 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
 
                 likelihood = max_likelihood
                 # ignore unseen feature
-                if feature_senti_ruler.ignore_unseen_feature(Local_Model.KW_DIS, kw):
+                if fs_ruler.ignore_unseen_feature(Local_Model.KW_DIS, kw):
                     likelihood = 0
 
                 likelihood *= Local_Model.FS_NUM.get(obj_name + '$' + kw.token.word, 0)
@@ -336,41 +331,41 @@ def replace_mention(nick_name_lst, obj_name, ln):
     return ln
 
 
-# convert chines punctuation to english punctuation
+# convert chinese punctuation to english punctuation
 # 1. period
 # 2. exclaim
 #
 
 
-def train_data_clean(infile, obj_name):
+def train_data_clean(infile):
     ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐'
         , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
+    ads = ['视频', '投票', '【', '《', '博文', '分享自']
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
-    urls = set()
     uniset = set()
     for ln in lns:
-        ad_counter = 0
+        #######REPOST CONTENT#####
         ln = re.sub('//@.+', '', ln)
-        tmpurls = re.findall(r'http:[^ ]+[\s$]', ln)
-        if len(tmpurls) > 1:
-            urls |= set(tmpurls)
-            continue
-        titles = re.findall(ur'《.*》', ln)
-        for title in titles:
-            if title != obj_name and len(title) > 1:
-                ln = ln.replace(title, ' ')
-
         if len(kw_util.regex_mention.sub("", ln).strip()) == 0:
             continue
-
+        ########TWEET FILTER######
         tmp_ln = kw_util.tweet_filter(ln)
+        ########AD WORDS#######
+        ad_counter = 0
         for ad_word in ad_words:
             if ad_word in ln:
                 ad_counter += 1
+
+        #########URL###########
+        has_url = False
         if kw_util.regex_url.search(ln) is not None:
             ad_counter += 1
-
+        if has_url:
+            for kw in ads:
+                if kw in ln:
+                    continue
+        #########################
         if ad_counter > 2:
             continue
         word_dic = []
@@ -382,7 +377,3 @@ def train_data_clean(infile, obj_name):
             uniset.add(' '.join(word_dic))
     for ln in clean_lns.values():
         print ln.strip().encode('utf-8')
-
-
-
-

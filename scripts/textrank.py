@@ -54,6 +54,7 @@ def textrank():
         if len(window_words) == 1:
             # print window_words[0][0], window_words[1][0]
             try:
+
                 gr.add_edge((window_words[0][0], window_words[1][0]))
             except AdditionError, e:
                 print 'already added %s, %s' % ((window_words[0][0].encode('utf-8'), window_words[1][0].encode('utf-8')))

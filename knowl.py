@@ -28,4 +28,4 @@ if __name__ == '__main__':
     elif sys.argv[1] == 'test':
         FreqBase.class_new()
     elif sys.argv[1] == 'clean':
-        FreqBase.train_data_clean(sys.argv[2], sys.argv[3].decode('utf-8'))
+        FreqBase.train_data_clean(sys.argv[2])

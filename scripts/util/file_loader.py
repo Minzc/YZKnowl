@@ -128,8 +128,6 @@ def load_mdl(infile=MODEL_FILE_PATH):
                 Local_Model.F_S_SET[kw1].add(kw2)
         elif feature_type == 2:
             sent_kw, not_amb_doc, total_doc = ln.strip().split('$')
-            if(sent_kw == u'发奋'):
-                print 'ok'
             Local_Model.S_AMB[sent_kw] = int(not_amb_doc) / int(total_doc)
         elif feature_type == 3:
             feature, null_senti, total_doc = ln.strip().split('$')
@@ -138,9 +136,6 @@ def load_mdl(infile=MODEL_FILE_PATH):
             kw, count = ln.strip().split('$')
             Local_Model.KW_DIS.inc(kw, int(count))
         elif feature_type == 5:
-            global TOTAL_NULL_SENTI
-            global TRAIN_SET_VOLUME
-
             total_null_doc, total_doc = ln.strip().split('$')
             Local_Model.TOTAL_NULL_SENTI = int(total_null_doc)
             Local_Model.TRAIN_SET_VOLUME = int(total_doc)

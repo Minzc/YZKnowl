@@ -7,7 +7,7 @@ echo "# Object Name     : $2"
 echo '############################################'
 ###########CLEAN##########
 echo '\033[31m Cleaning Data'
-/usr/local/bin/python2.7 FreqBase.py clean $FILE_PAHT $OBJE_NAME> tmp
+/usr/local/bin/python2.7 knowl.py clean $FILE_PAHT > tmp
 echo '\033[31m Finish Cleaning'
 echo '        |'
 ###########SORT############
@@ -29,13 +29,13 @@ echo '        |'
 
 ##########TRAIN#############
 echo  '\033[31m Start Training'
-/usr/local/bin/python2.7 FreqBase.py gen_model train_data.txt > model.txt
+/usr/local/bin/python2.7 knowl.py gen_model train_data.txt > model.txt
 echo  '\033[31m Finish Training'
 echo '        |'
 
 ##########TEST#############
 echo  '\033[31m Start Testing'
-/usr/local/bin/python2.7 FreqBase.py classify test_data.txt $OBJE_NAME model.txt > rst.txt
+/usr/local/bin/python2.7 knowl.py classify test_data.txt $OBJE_NAME model.txt > rst.txt
 echo  '\033[31m Finish Testing'
 echo '        |'
 
