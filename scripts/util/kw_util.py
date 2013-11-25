@@ -3,13 +3,15 @@
 
 
 import sys
+import re
+import string
+import itertools
+
 import jieba
 import nltk
 import jieba.analyse
 import jieba.posseg as pseg
-import re
-import string
-import itertools
+
 
 #Common regular expressions
 regex_cnpunc = re.compile(ur"[《》（）&%￥#@！{}【】？—、！；：。“”，…]")
@@ -94,8 +96,9 @@ def punc_replace(ln):
     ln = re.sub(u'『', '[', ln)
     ln = re.sub(u'』', ']', ln)
     ln = re.sub(u'＃', '#', ln)
+    ln = re.sub(u'：', ':', ln)
+    ln = re.sub(u'～', '~', ln)
     ln = re.sub(r'\(.*?\)', '', ln)
-    ln = regex_url.sub(" ", ln)
     return ln
 
 

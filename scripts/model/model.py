@@ -33,6 +33,12 @@ class Dis_Type:
     PRIOR = 9
     POSTERIOR = 10
 
+    def __init__(self):
+        self.word_dis = Dis_Type.MORE_THAN_THREE_WORDS
+        self.phrs_dis = Dis_Type.MORE_THAN_FOUR_PHRASE
+        self.snt_dis = Dis_Type.MORE_THAN_ONE_SENT
+        self.rltv_dis = Dis_Type.POSTERIOR
+
 
 class Result:
     def __init__(self):
@@ -45,6 +51,15 @@ class Result:
         self.FEATURE = nltk.FreqDist()
         self.FEATURE_POS = nltk.FreqDist()
         self.FEATURE_NEG = nltk.FreqDist()
+
+
+class Tokennew:
+    def __init__(self, keyword, origin, wdpos, phrspos, sntncpos):
+        self.keyword = keyword
+        self.origin = origin
+        self.wdpos = wdpos
+        self.phrspos = phrspos
+        self.sntncpos = sntncpos
 
 
 class Token:
@@ -61,3 +76,22 @@ class Seg_token:
         self.word = word
         self.flag = flag
         self.origin = origin
+
+
+class kb:
+    POSITIVE = 'p'
+    NEGATIVE = 'n'
+    OBJECT = 'obj'
+    FEATURE = 'f'
+    # key -> instance
+    # value -> entity
+    instances = {}
+    # key -> sentiment
+    # value -> polar
+    sentiments = {}
+    # key -> feature
+    features = {}
+    # key -> degree words
+    degree = set()
+    stop_dic = set()
+

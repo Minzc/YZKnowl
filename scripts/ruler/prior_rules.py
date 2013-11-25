@@ -24,3 +24,30 @@ def prior_rules(ln, replace_punc=True):
             or ('!' in ln):
         return filter(lambda x: x != '', re.split(r'\d+[.,]|#|!', ln))
     return [ln]
+
+
+def is_ad(ln):
+    ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐' , u'活动',
+                u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖'
+                u'奖品', u'参加', u'有奖', u'分享', u'惊喜', u'官方旗舰店', u'大奖', u'详情']
+    url_ad = [u'视频', u'投票', u'【', u'《', u'博文', u'分享自']
+    ln = kw_util.regex_emoji.sub(' ', ln)
+    ln = kw_util.regex_mention.sub(' ', ln)
+    ad_counter = 0
+    for adw in ad_words:
+        if adw in ln:
+            ad_counter += 1
+    # URL
+    has_url = False
+    if kw_util.regex_url.search(ln) is not None:
+        ad_counter += 1
+        has_url = True
+    if has_url:
+        for kw in url_ad:
+            if kw in ln:
+                ad_counter += 2
+    if ad_counter >= 2:
+        return True
+    return False
+
+

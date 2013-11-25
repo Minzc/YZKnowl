@@ -11,10 +11,6 @@ import re
 import operator
 
 
-stop_dic = [ln.strip().decode('utf-8') for ln in open('dictionary/stopwords.txt').readlines()]
-jieba.load_userdict('dictionary/new_words.txt')
-
-
 def clean_data(ln):
     ln_elements = re.split(ur'[!.?…~;",]', kw_util.punc_replace(ln))
     clean_ln = []
@@ -25,6 +21,7 @@ def clean_data(ln):
 
 
 def get_top_kw(lns):
+    stop_dic = [ln.strip().decode('utf-8') for ln in open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/stopwords.txt').readlines()]
     kw_dist = nltk.FreqDist()
     kw_flag = {}
     phrases = set()
@@ -91,23 +88,30 @@ def find_kw(kw_dist, phrases):
     return kw_chi
 
 
-def tf_idf(lns):
+def tf_idf(file_name):
+    lns = [ln.decode('utf-8') for ln in open(file_name).readlines()]
+    stop_dic = [ln.strip().decode('utf-8') for ln in open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/stopwords.txt').readlines()]
     kw_frq = nltk.FreqDist()
+    total_dic = {kw.decode('utf-8').strip() for kw in open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/real_final_dic.txt').readlines()}
     phrases = set()
     for ln in lns:
         ln = kw_util.tweet_filter(clean_data(re.sub('#(.+?)#', ' ', ln)))
         phrases |= set(ln.split(' '))
     for phrase in phrases:
-        kws = list(jieba.posseg.cut(phrase))
+        kwposes = kw_util.backward_maxmatch(phrase, total_dic, 100, 1)
+        kws = []
+        for kwpos in kwposes:
+            kws.append(phrase[kwpos[0]:kwpos[1]])
         for kw in kws:
-            if kw.word not in stop_dic and len(kw.word) > 1 and kw.flag != 'eng' and('n' in kw.flag or 'v' in kw.flag or 'a' in kw.flag):
-                kw_frq.inc(kw.word)
+            if kw not in stop_dic:
+                kw_frq.inc(kw)
+
     tfidf = {}
     for k, v in kw_frq.items():
         tfidf[k] = v * jieba.analyse.idf_freq.get(k, jieba.analyse.median_idf)
     tf_idf_srtd = sorted(tfidf.iteritems(), key=operator.itemgetter(1), reverse=True)
     for k, v in tf_idf_srtd:
-        print k.encode('utf-8')
+        print k.encode('utf-8'), v
     return tf_idf_srtd
 
 
@@ -128,7 +132,6 @@ if __name__ == '__main__':
             print k.encode('utf-8')
     elif sys.argv[1] == 'tfidf':
         FILE_NAME = sys.argv[2]
-        lns = [ln.decode('utf-8') for ln in open(FILE_NAME).readlines()]
         tf_idf(lns)
     elif sys.argv[1] == 'clean':
         FILE_NAME = sys.argv[2]

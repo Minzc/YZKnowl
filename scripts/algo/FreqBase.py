@@ -9,7 +9,6 @@ from scripts.model.model import *
 from scripts.util import file_loader
 from scripts.util import kw_util
 from scripts.util.MyLib import decide_dis_feature_type
-import jieba
 import operator
 import re
 
@@ -21,11 +20,6 @@ FILE_PREFIX = 'yinlu'
 TEST_FILE_PAHT = FILE_PREFIX + '_test_data.txt'
 MODEL_FILE_PATH = FILE_PREFIX + '_model.txt'
 OBJ_NAME = u'银鹭花生牛奶'
-
-
-
-
-
 
 
 def cal_likelihood(kw, feature):
@@ -166,13 +160,42 @@ def cal_feature_sent_score(feature, sentiment, total_pair_occur):
         print s_word, Global_Model.S_AMB.get(sentiment.token.word, 1)
         print 'Sentiment Final Score:', f_s_pair, snt_lkhd, Local_Model.F_S_TYPE.get(f_s_pair, 1)
         print fs_ruler.abs_pos(feature, sentiment)
-        print 'abs pos', fs_ruler.abs_pos(sentiment,
-                                                     feature), sentiment.wrd_end_pos - feature.wrd_strt_pos < 2, feature.phrase == sentiment.phrase
+        print 'abs pos', fs_ruler.abs_pos(sentiment, feature), sentiment.wrd_end_pos - feature.wrd_strt_pos < 2, \
+            feature.phrase == sentiment.phrase
         # Filter direct association
     if fs_ruler.abs_pos(sentiment, feature) and Global_Model.S_AMB.get(sentiment.token.word, 1) > 0.3:
         snt_lkhd *= 2
         wd_dis_type = Dis_Type.LESS_THAN_THREE_WORDS
     return snt_lkhd, wd_dis_type
+
+
+def fs_select2(feature_list, sentiment_list, total_pair_occur, obj_poss, tfidf):
+    possible_pairs = [(f, s) for f in feature_list for s in sentiment_list if
+                      fs_ruler.obj_feature_close(obj_poss, f) and f.token.flag != u'商品']
+    fs_pair = []
+    for feature, sentiment in possible_pairs:
+        if feature.sntnc == sentiment.sntnc:
+            word_distance = feature.wrd_strt_pos - sentiment.wrd_end_pos
+            if word_distance < 0:
+                word_distance = sentiment.wrd_strt_pos - feature.wrd_end_pos
+            print feature.token.word.encode('utf-8'), sentiment.token.origin.encode('utf-8'), word_distance
+            fs_pair.append((100 - word_distance, tfidf.get(sentiment.token.origin, 0), feature.token.origin, sentiment.token.origin))
+
+    # (likelihood,reversed_word_distance,feature,sentiment)
+    sorted_fs_pair = sorted(fs_pair, key=operator.itemgetter(0, 1), reverse=True)
+    # key -> feature, value -> (Feature_Obj,Senti_Obj)
+    return fs_cmp(sorted_fs_pair)
+
+
+def fs_cmp(sorted_fs_pair):
+    rst_fs_pair = {}
+    used_sentiment, used_feature = set(), set()
+    for likelihood, pair_score, feature, sentiment in sorted_fs_pair:
+        if feature not in used_feature and sentiment not in used_sentiment and likelihood != -1:
+            rst_fs_pair[feature] = (sentiment, likelihood)
+            used_sentiment.add(sentiment)
+            used_feature.add(feature)
+    return rst_fs_pair
 
 
 def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, obj_poss):
@@ -212,14 +235,7 @@ def select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, ob
     # (likelihood,reversed_word_distance,feature,sentiment)
     sorted_fs_pair = sorted(fs_pair, key=operator.itemgetter(0, 1), reverse=True)
     # key -> feature, value -> (Feature_Obj,Senti_Obj)
-    rst_fs_pair = {}
-    used_sentiment, used_feature = set(), set()
-    for likelihood, pair_score, feature, sentiment in sorted_fs_pair:
-        if feature not in used_feature and sentiment not in used_sentiment and likelihood != -1:
-            rst_fs_pair[feature] = (sentiment, likelihood)
-            used_sentiment.add(sentiment)
-            used_feature.add(feature)
-    return rst_fs_pair
+    return fs_cmp(sorted_fs_pair)
 
 
 def cal_alpha():
@@ -228,7 +244,7 @@ def cal_alpha():
     ALPHA = (Local_Model.TOTAL_NULL_SENTI + (p_cover - 1) * Local_Model.TRAIN_SET_VOLUME) / (p_cover * Local_Model.TOTAL_NULL_SENTI)
 
 
-def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PATH, ):
+def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PATH):
     """Classify test data
     : Param infile     : input file path
     : Param obj_name   : object name
@@ -236,6 +252,8 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
     """
     # TODO: Load Model
     Local_Model = file_loader.load_mdl(model_name)
+    tfidf = file_loader.load_tfidf('tfidf')
+
     # load_glb_mdl('globalmodel1107/global_model.txt')
 
     entity_class, synonym, sent_dic, degree_dic = file_loader.load_knw_base()
@@ -309,7 +327,8 @@ def class_new(infile=TEST_FILE_PAHT, obj_name=OBJ_NAME, model_name=MODEL_FILE_PA
             if len(sentiment_list) == 0:
                 continue
 
-            tmp_pairs = select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, obj_poss)
+            # tmp_pairs = select_sentiment_word_new(feature_list, sentiment_list, total_pair_occur, obj_poss)
+            tmp_pairs = fs_select2(feature_list, sentiment_list, total_pair_occur, obj_poss, tfidf)
             # Combine Results
             for key, senti_value in tmp_pairs.items():
                 if key in feature_sent_pairs and feature_sent_pairs[key][1] > senti_value[1]:
@@ -332,6 +351,22 @@ def replace_mention(nick_name_lst, obj_name, ln):
     return ln
 
 
+def seg_twts(filename):
+    stop_dic = [ln.strip().decode('utf-8') for ln in open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/stopwords.txt').readlines()]
+    total_dic = {kw.decode('utf-8').strip() for kw in open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/real_final_dic.txt').readlines()}
+    for ln in open('local_feature.txt').readlines():
+        total_dic.add(ln.decode('utf-8').strip())
+    lns = [ln.decode('utf-8') for ln in open(filename).readlines()]
+    for ln in lns:
+        kwposes = kw_util.backward_maxmatch(ln, total_dic, 100, 2)
+        kws = []
+        for kwpos in kwposes:
+            kw = ln[kwpos[0]:kwpos[1]]
+            if kw in stop_dic:
+                kw = u'停止词'
+            kws.append(kw)
+        print ' '.join(kws).encode('utf-8')
+
 # convert chinese punctuation to english punctuation
 # 1. period
 # 2. exclaim
@@ -340,8 +375,8 @@ def replace_mention(nick_name_lst, obj_name, ln):
 
 def train_data_clean(infile):
     ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐'
-        , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
-    ads = ['视频', '投票', '【', '《', '博文', '分享自']
+                , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
+    ads = [u'视频', u'投票', u'【', u'《', u'博文', u'分享自']
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
     total_dic = {kw.decode('utf-8').strip() for kw in open('dictionary/real_final_dic.txt').readlines()}
@@ -363,10 +398,12 @@ def train_data_clean(infile):
         has_url = False
         if kw_util.regex_url.search(ln) is not None:
             ad_counter += 1
+            has_url = True
         if has_url:
             for kw in ads:
                 if kw in ln:
-                    continue
+                    #TODO: 同步到java
+                    ad_counter += 2
         #########################
         if ad_counter > 2:
             continue

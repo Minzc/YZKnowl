@@ -1,53 +1,80 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 from __future__ import division
+import re
+from scripts.ruler import prior_rules
+
 __author__ = 'congzicun'
 KNWB_PATH = 'knowl-base.txt'
+LOCAL_FEATURE = 'local_feature.txt'
 from scripts.model.model import *
-from scripts.util import MyLib
+from scripts.util import MyLib, kw_util
 
 FILE_PREFIX = 'yinlu'
 MODEL_FILE_PATH = FILE_PREFIX + '_model.txt'
 
 
-def load_knw_base():
-    """Load knowledge base to memory
-    :Return entity_class    : entity -> classes. Value is a list
-    :Return synonym         : instance -> entity.
-    :Return sent_dic        : sentiment dictionary
-    """
+def load_data_set(filename):
+    lns = []
+    uniqln = set()
+    for ln in open(filename).readlines():
+        ln = kw_util.punc_replace(re.sub('//@.+', '', ln.decode('utf-8')))
+        ln_seg = kw_util.tweet_filter(ln)
+        if ln_seg not in uniqln and len(ln) != 0 and not prior_rules.is_ad(ln):
+            uniqln.add(ln_seg)
+            lns.append(ln)
+    return lns
+
+
+def _load_stopdic():
+    stop_dic = [ln.strip().decode('utf-8') for ln in
+                open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/stopwords.txt').readlines()]
+    return stop_dic
+
+
+def load_dic():
+    total_dic = {kw.decode('utf-8').strip() for kw in
+                 open('/Users/congzicun/Yunio/pycharm/YZKnowl/dictionary/real_final_dic.txt').readlines()}
+    return total_dic
+
+
+def load_tfidf(filename):
+    tfidf = {}
+    lns = [ln.decode('utf-8').strip() for ln in open(filename).readlines()]
+    for ln in lns:
+        kw, v = ln.split(' ')
+        tfidf[kw] = v
+    return tfidf
+
+
+def load_knw_base(obj_name):
     lns = [ln.decode('utf-8').strip().lower() for ln in open(KNWB_PATH).readlines()]
-    # indx -> entity , value -> class
-    entity_class = {}
-    # indx -> entity , value -> instance
-    synonym = {}
-    # sentiment
-    # indx -> instance value -> entity
-    sent_dic = {}
-    degree_dic = set()
+    knowbase = kb()
     for ln in lns:
         if ln.startswith('#') or len(ln) == 0:
             continue
         entity, instances, classes = ln.split('\t')
-        if classes == u'食品':
-            continue
         for cls in classes.split('|'):
-            if len(cls) != 0:
-                if u'情感词' in cls:
-                    if u'正面' in cls:
-                        sent_dic[entity] = 'p'
-                    elif u'负面' in cls:
-                        sent_dic[entity] = 'n'
-                    elif u'程度' in cls:
-                        degree_dic.add(entity)
-                else:
-                    entity_class.setdefault(entity, [])
-                    entity_class[entity].append(cls)
-        synonym[entity] = entity
+            if len(cls) == 0:
+                continue
+            if u'情感词' in cls:
+                if u'正面' in cls:
+                    knowbase.sentiments[entity] = kb.POSITIVE
+                if u'负面' in cls:
+                    knowbase.sentiments[entity] = kb.NEGATIVE
+                if u'程度' in cls:
+                    knowbase.degree.add(entity)
+            else:
+                knowbase.features[entity] = kb.FEATURE
+        knowbase.instances[entity] = entity
+
         for instance in instances.split('|'):
             if len(instance) != 0:
-                synonym[instance] = entity
-    return entity_class, synonym, sent_dic, degree_dic
+                knowbase.instances[instance] = entity
+    knowbase.instances[obj_name] = obj_name
+    knowbase.features[obj_name] = knowbase.OBJECT
+    knowbase.stop_dic = _load_stopdic()
+    return knowbase
 
 
 def load_glb_mdl(infile):

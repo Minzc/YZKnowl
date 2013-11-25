@@ -136,7 +136,6 @@ def gen_model(infile=TRAIN_FILE_PAHT, obj_name=OBJ_NAME):
 
             stat_info(f_null_docs, kw_distr, kws, senti_dic, sentiment_ambi, local_model)
         if not if_has_senti and kwnum != 0:
-            print ln.encode('utf-8')
             total_null_docs += 1
 
     # Output Model File

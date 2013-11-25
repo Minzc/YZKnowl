@@ -1,12 +1,17 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 __author__ = 'congzicun'
+import re
+
 import jieba
 import nltk
-import re
+
 from scripts.util import kw_util
 from scripts.model.model import *
+
+
 DEBUG = False
+
 
 def combine_kw(kw_w_lst, obj_name):
     combined_w = []
@@ -192,6 +197,28 @@ def merge_rst(ln, sent_dic, feature_rst, feature_sent_pairs, result, synonym):
     result.TOTAL_TWEETS += 1
 
 
+def seg(ln, dic):
+    kwposes = kw_util.backward_maxmatch(ln, dic, 100, 1)
+    kws = []
+    for kwpos in kwposes:
+        kws.append(ln[kwpos[0]:kwpos[1]])
+    return kws
+
+
+def seg_token(ln, dic, kb):
+    ln_segs = kw_util.tweet_filter(ln).split(' ')
+    kw_pos_num = 0
+    kw_tokens = []
+    for phrs_pos, phrase in enumerate(ln_segs):
+        kwposes = kw_util.backward_maxmatch(phrase, dic, 100, 1)
+        for kwpos in kwposes:
+            kw = phrase[kwpos[0]:kwpos[1]]
+            kw_token = Tokennew(kb.instances.get(kw, kw), kw, kw_pos_num, phrs_pos, 1)
+            kw_tokens.append(kw_token)
+            kw_pos_num += 1
+    return kw_tokens
+
+
 def seg_ln(ln, synonym, obj_name, entity_class):
     know_dic = set(synonym.keys())
     know_dic.add(obj_name)
@@ -222,10 +249,32 @@ def seg_ln(ln, synonym, obj_name, entity_class):
                         flag = entity_class[synonym[keyword]][0]
                         # TODO: flag 需要细化
                     kws.append(
-                        Token(index, phrase_position, abs_word_start, abs_word_end, Seg_token(synonym[keyword], flag, keyword)))
+                        Token(index, phrase_position, abs_word_start, abs_word_end,
+                              Seg_token(synonym[keyword], flag, keyword)))
             pre_phrases_len += len(phrase)
             phrase_position += 1
     return kws, obj_poss
+
+
+def dcd_ds_ftr_type(token1, token2):
+    feature = Dis_Type()
+    if abs(token1.wdpos - token2.wdpos) < 2:
+        feature.word_dis = Dis_Type.LESS_THAN_ONE_WORDS
+    elif abs(token1.wdpos - token2.wdpos) < 3:
+        feature.word_dis = Dis_Type.LESS_THAN_THREE_WORDS
+    else:
+        feature.word_dis = Dis_Type.MORE_THAN_THREE_WORDS
+
+    if abs(token1.phrspos - token2.phrspos) < 2:
+        feature.phrs_dis = Dis_Type.LESS_THAN_TWO_PHRASE
+    elif abs(token1.phrspos - token2.phrspos) < 4:
+        feature.phrs_dis = Dis_Type.LESS_THAN_FOUR_PHRASE
+    else:
+        feature.phrs_dis = Dis_Type.MORE_THAN_FOUR_PHRASE
+
+    if abs(token1.sntncpos - token2.sntncpos):
+        feature.snt_dis = Dis_Type.LESS_THAN_ONE_SENT
+    return feature
 
 
 def decide_dis_feature_type(kw1, kw2):
@@ -263,3 +312,29 @@ def decide_dis_feature_type(kw1, kw2):
     if kw1.wrd_strt_pos > kw2.wrd_strt_pos:
         relative_pos = Dis_Type.POSTERIOR
     return wd_dis_type, snt_dis_type, phrase_dis_type, relative_pos
+
+
+def filter_sentiment(kw_tokens, kb):
+    kw_stats = []
+    for kw_index, kw_token in enumerate(kw_tokens):
+        kw_stats.append(True)
+        if len(kw_token.origin) == 1 and kb.instances.get(kw_token.origin, kw_token.origin) in kb.sentiments:
+            kw_stats[kw_index] = False
+            if kw_index > 1 and kw_tokens[kw_index - 1].origin in kb.degree:
+                kw_stats[kw_index] = True
+            elif kw_index + 1 < len(kw_tokens) and kb.instances.get(kw_tokens[kw_index + 1].origin,
+                                                                    kw_tokens[kw_index + 1].origin) in kb.features:
+                kw_stats[kw_index] = True
+    rst = []
+    for index, kw_stat in enumerate(kw_stats):
+        if kw_stat:
+            rst.append(kw_tokens[index])
+    return rst
+
+
+def is_feature(kw_token, kb, objname):
+    is_sentiment = kb.instances.get(kw_token.keyword, kw_token.keyword) in kb.sentiments
+    is_stopword = kw_token.keyword in kb.stop_dic
+    is_object = kw_token.keyword == objname
+    return not is_sentiment and not is_stopword and not is_object
+
