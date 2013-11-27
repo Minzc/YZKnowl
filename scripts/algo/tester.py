@@ -156,15 +156,16 @@ def cal_token_lkhd(token1, token2, local_model):
     pair_name = token1.keyword + '$' + token2.keyword
     P_c_fs = 1
     if token1 is not token2:
-        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.word_dis) / local_model.FS_NUM[pair_name]
-        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.phrs_dis) / local_model.FS_NUM[pair_name]
-        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.rltv_dis) / local_model.FS_NUM[pair_name]
+        f_s_t_num = local_model.F_S_TYPE[pair_name].get(feature.POSTERIOR, 0) + \
+                    local_model.F_S_TYPE[pair_name].get(feature.PRIOR, 0)
+        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.word_dis) / f_s_t_num
+        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.phrs_dis) / f_s_t_num
+        P_c_fs = P_c_fs * local_model.F_S_TYPE[pair_name].get(feature.rltv_dis) / f_s_t_num
 
     pair_num = local_model.FS_NUM.get(pair_name, local_model.KW_DIS.get(token1.keyword)) - 1
     P_f_s = pair_num / local_model.TRAIN_SET_VOLUME
 
     likehd = P_c_fs * P_f_s
-    #TODO:
     return likehd
 
 
@@ -180,11 +181,11 @@ def cal_f(tokenlst, kb, local_model, objname):
     return f_score
 
 
-def cal_fs(f, tokenlst, kb, local_model):
+def cal_fs(f, tokenlst, kb, local_model, amb):
     fs_pair = [(f, s) for s in tokenlst if s.keyword in kb.sentiments]
     fs_list = []
     for f_token, s_token in fs_pair:
-        fs_score = cal_token_lkhd(f_token, s_token, local_model)
+        fs_score = cal_token_lkhd(f_token, s_token, local_model) * amb.get(s_token.origin, 1.0)
         fs_list.append((f_token, s_token, fs_score))
     return fs_list
 
@@ -201,7 +202,24 @@ def f_cmp(fs_lst):
     return valid_pair
 
 
+def slct_fs_pair_tfidf(fspairlist, tfidf_scores):
+    fspairlist = [(f_token, s_token, tfidf_scores.get(f_token.origin)) for f_token, s_token, _ in fspairlist]
+    fspairlist = sorted(fspairlist, key=operator.itemgetter(2), reverse=True)
+    return fspairlist[0]
+
+
+def slct_fs_pair_nst(fspairlist):
+    pass
+
+
+def slct_fs_pair_score(fspairlist, flist):
+    fspairlist = [(f_token, s_token, flist[f_token]) for f_token, s_token, _ in fspairlist]
+    fspairlist = sorted(fspairlist, key=operator.itemgetter(2), reverse=True)
+    return fspairlist[0]
+
+
 def test(file_name, obj_name, model_name):
+    amb = file_loader.load_amb()
     data_set = file_loader.load_data_set(file_name)
     dic = file_loader.load_dic()
     dic.add(obj_name)
@@ -212,8 +230,8 @@ def test(file_name, obj_name, model_name):
     for tw in data_set:
         fspairlist = []
         sentences = re.split(ur'[!.?…~;"#:—]', kw_util.punc_replace(tw))
+        flist = {}
         for sen_index, sentence in enumerate(sentences):
-            flist = {}
             if len(sentence.strip()) == 0:
                 continue
             tokenlst = MyLib.filter_sentiment(MyLib.seg_token(sentence, dic, kb), kb)
@@ -221,10 +239,19 @@ def test(file_name, obj_name, model_name):
             f_score = cal_f(tokenlst, kb, local_model, obj_name)
             flist.update(f_score.items())
             tmp_fs_pair = []
-            for f_token in flist.keys():
-                tmp_fs_pair.extend(cal_fs(f_token, tokenlst, kb, local_model))
+            for f_token in f_score.keys():
+                tmp_fs_pair.extend(cal_fs(f_token, tokenlst, kb, local_model, amb))
             fspairlist.extend(f_cmp(tmp_fs_pair))
         print tw.encode('utf-8').strip()
         for f, s, v in fspairlist:
             print f.origin.encode('utf-8'), s.origin.encode('utf-8'), v
+        if len(fspairlist) == 0:
+            continue
+
+        tfidfrst = slct_fs_pair_tfidf(fspairlist, tfidf_scores)
+        fscorerst = slct_fs_pair_score(fspairlist, flist)
+        print '#' * 10, 'Result', '#' * 10
+        print 'tfidf', tfidfrst[0].origin.encode('utf-8'), tfidfrst[1].origin.encode('utf-8')
+        print 'score', fscorerst[0].origin.encode('utf-8'), fscorerst[1].origin.encode('utf-8')
+
 

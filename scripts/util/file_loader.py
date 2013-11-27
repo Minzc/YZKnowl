@@ -170,3 +170,17 @@ def load_mdl(infile=MODEL_FILE_PATH):
             feature, sentiment, count = ln.strip().split('$')
             Local_Model.CERNTAIN_PAIR.inc(feature + '$' + sentiment, int(count))
     return Local_Model
+
+def load_idf():
+    idf = {}
+    for ln in open('dictionary/idf.txt').readlines():
+        kw, value = ln.decode('utf-8').strip().split(' ')
+        idf[kw] = float(value)
+    return idf
+
+def load_amb():
+    amb = {}
+    for ln in open('dictionary/amb.txt').readlines():
+        kw, value = ln.decode('utf-8').strip().split(' ')
+        amb[kw] = float(value)
+    return amb

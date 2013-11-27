@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 import re
 from scripts.algo import basic_algo
-from scripts.util import kw_util
+from scripts.util import kw_util, file_loader
 
 __author__ = 'congzicun'
 
 
 def extr_kw(lns, kb, dic):
+    idf = file_loader.load_idf()
     phrases = set()
     for ln in lns:
         ln = kw_util.tweet_filter(re.sub('#(.+?)#', ' ', ln))
         phrases |= set(ln.split(' '))
 
-    tf_idf_srtd = basic_algo.tf_idf(phrases, dic)
+    tf_idf_srtd = basic_algo.tf_idf(phrases, idf)
     added_ftr_num = min(len(tf_idf_srtd), 20)
     print 'LOCAL FEATURE:'
     counter = 0

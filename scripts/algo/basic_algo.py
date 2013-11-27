@@ -12,7 +12,7 @@ import jieba
 __author__ = 'congzicun'
 
 
-def tf_idf(lns, total_dic):
+def tf_idf(lns, idf_value):
     kw_frq = nltk.FreqDist()
     # TF
     for ln in lns:
@@ -23,7 +23,7 @@ def tf_idf(lns, total_dic):
     #IDF
     tf_idf = {}
     for k, v in kw_frq.items():
-        tf_idf[k] = v * jieba.analyse.idf_freq.get(k, jieba.analyse.median_idf)
+        tf_idf[k] = v * idf_value.get(k, 15.5312024064)
     return sorted(tf_idf.iteritems(), key=operator.itemgetter(1), reverse=True)
 
 

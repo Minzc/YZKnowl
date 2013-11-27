@@ -27,14 +27,19 @@ def set_dft_mdl_value(pair, local_model):
 
 def stat(tokens, localmodel, kb):
     tokenpairs = [(token1, token2) for token1 in tokens for token2 in tokens if token1 is not token2]
+    used_pair = set()
     for token1, token2 in tokenpairs:
         feature = MyLib.dcd_ds_ftr_type(token1, token2)
         pair = token1.keyword + '$' + token2.keyword
+        tmppair = token1.origin + '$' + token2.origin
         localmodel.F_S_TYPE.setdefault(pair, nltk.FreqDist())
         localmodel.F_S_TYPE[pair].inc(feature.word_dis)
         localmodel.F_S_TYPE[pair].inc(feature.phrs_dis)
         localmodel.F_S_TYPE[pair].inc(feature.snt_dis)
         localmodel.F_S_TYPE[pair].inc(feature.rltv_dis)
+        if tmppair in used_pair:
+            continue
+        used_pair.add(tmppair)
         localmodel.FS_NUM.inc(pair)
 
     has_sentiment = False
@@ -54,7 +59,7 @@ def output_mdl(local_model):
             print kw_pair.encode('utf-8') + '$' + str(dis_type) + '$' + str(value)
     print '#FEATURE_SENTI_DIST'
     for kw, count in local_model.FS_NUM.items():
-        print kw.encode('utf-8') + '$' + str(count + 1)
+        print kw.encode('utf-8') + '$' + str(count)
         # print '#AMBI_DIST'
     # for kw, count in sentiment_ambi.items():
     #     print kw.encode('utf-8') + '$' + str(count + 1) + '$' + str(kw_distr.get(kw) + 2)
