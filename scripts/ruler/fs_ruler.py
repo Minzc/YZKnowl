@@ -50,7 +50,7 @@ def if_rep_due_amb(senti_candi, best_fit_senti, SENTI_AMBI):
 
 def ignore_unseen_senti(KW_DIS, sentiment, feature):
     if sentiment.token.word not in KW_DIS \
-            and sentiment.phrase != feature.phrase:
+        and sentiment.phrase != feature.phrase:
         return True
     return False
 
@@ -82,22 +82,22 @@ def combine_sentiment(kws, sent_dic, degree_dic):
             # combine '最好'
             if indx > 0:
                 prior_word = kws[indx - 1].token.word
-                if (kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase)\
-                        and (prior_word in degree_dic):
+                if (kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase) \
+                    and (prior_word in degree_dic):
                     kw.wrd_strt_pos = kws[indx].wrd_strt_pos
                     kw_stat[indx] = True
-            # elif indx + 1 < len(kws):
-            #     posterior_word = kws[indx + 1].token.word
-            #     if (kw.wrd_strt_pos == kws[indx + 1].wrd_end_pos and kws[indx + 1].phrase == kw.phrase) \
-            #             and (posterior_word in degree_dic):
-            #         kw_stat[indx] = True
+                    # elif indx + 1 < len(kws):
+                    #     posterior_word = kws[indx + 1].token.word
+                    #     if (kw.wrd_strt_pos == kws[indx + 1].wrd_end_pos and kws[indx + 1].phrase == kw.phrase) \
+                    #             and (posterior_word in degree_dic):
+                    #         kw_stat[indx] = True
         # check contiguous sentiment word
         elif indx > 0:
             prior_word = kws[indx - 1].token.word
             if prior_word in sent_dic and kw.token.word in sent_dic \
-                    and kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase:
+                and kw.wrd_strt_pos == kws[indx - 1].wrd_end_pos and kws[indx - 1].phrase == kw.phrase:
                 kw_stat[indx - 1] = False
-        # remove degree word
+                # remove degree word
         if kw.token.word in degree_dic:
             kw_stat[indx] = False
     clean_kws = []
@@ -117,3 +117,47 @@ def obj_feature_close(obj_poss, feature):
     if smallest_dis > threshold:
         return False
     return True
+
+######################
+
+
+def filter_fs(obj_token, f_token, s_token):
+    if _fs_too_far(f_token, s_token):
+        return True
+    # if _fs_wrong_pos(obj_token, f_token, s_token):
+    #     return True
+    pass
+
+
+def _fs_too_far(f_token, s_token):
+    threshold = 2
+    if f_token.wdpos < s_token.wdpos:
+        threshold = 3
+    word_dis = abs(f_token.wdpos - s_token.wdpos)
+    if abs(f_token.phrspos - s_token.phrspos) + float(word_dis) / 5 > threshold:
+        return True
+    return False
+
+
+def _fs_wrong_pos(obj_token, f_token, s_token):
+    return not (obj_token.phrspos == f_token.phrspos | f_token.phrspos == s_token.phrspos)
+
+
+def _of_wrong_pos(obj_token, f_token):
+    if f_token.wdpos < obj_token.wdpos:
+        return True
+    return False
+
+
+def _f_too_far(obj_token, f_token):
+    if abs(obj_token.phrspos - f_token.phrspos) > 4:
+        return True
+    return False
+
+
+def filter_f(obj_token, f_token):
+    if _of_wrong_pos(obj_token, f_token):
+        return True
+    if _f_too_far(obj_token, f_token):
+        return True
+    return False

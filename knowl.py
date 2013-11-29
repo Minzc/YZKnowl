@@ -1,3 +1,5 @@
+from scripts.util import file_loader
+
 __author__ = 'congzicun'
 import sys
 from scripts.algo import local_kw_ext, tester, train
@@ -16,26 +18,18 @@ if __name__ == '__main__':
 """
 
     elif sys.argv[1] == 'gen_model':
-        # if len(sys.argv) > 2:
-        #     trainer.gen_model(sys.argv[2])
-        # else:
-        #     trainer.gen_model()
         train.train(sys.argv[2], sys.argv[3].decode('utf-8'))
-    elif sys.argv[1] == 'classify':
-        if len(sys.argv) < 4:
-            FreqBase.class_new(sys.argv[2])
-        else:
-            FreqBase.class_new(sys.argv[2], sys.argv[3].decode('utf-8'), sys.argv[4])
     elif sys.argv[1] == 'test':
         tester.test(sys.argv[2], sys.argv[3].decode('utf-8'), sys.argv[4])
         # FreqBase.class_new()
     elif sys.argv[1] == 'clean':
         FreqBase.train_data_clean(sys.argv[2])
     elif sys.argv[1] == 'tfidf':
-        rst = local_kw_ext.extr_kw(sys.argv[2])
-        for k, v in rst:
+        kb = file_loader.load_knw_base(sys.argv[3])
+        dic = file_loader.load_dic()
+        lns = file_loader.load_data_set(sys.argv[2])
+        rst = local_kw_ext.extr_kw(lns, kb, dic)
+        for k, v in rst.items():
             print k.encode('utf-8'), v
     elif sys.argv[1] == 'seg':
         FreqBase.seg_twts(sys.argv[2])
-    elif sys.argv[1] == 'aat':
-        tester.test(sys.argv[2], sys.argv[3].decode('utf-8'))

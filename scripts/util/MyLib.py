@@ -323,7 +323,8 @@ def filter_sentiment(kw_tokens, kb):
             if kw_index > 1 and kw_tokens[kw_index - 1].origin in kb.degree:
                 kw_stats[kw_index] = True
             elif kw_index + 1 < len(kw_tokens) and kb.instances.get(kw_tokens[kw_index + 1].origin,
-                                                                    kw_tokens[kw_index + 1].origin) in kb.features:
+                                                                    kw_tokens[kw_index + 1].origin) in kb.features \
+                    and kw_tokens[kw_index + 1].phrspos == kw_token.phrspos:
                 kw_stats[kw_index] = True
     rst = []
     for index, kw_stat in enumerate(kw_stats):
