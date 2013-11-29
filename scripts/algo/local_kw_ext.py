@@ -29,5 +29,5 @@ def extr_kw(lns, kb, dic):
     return {k: v for k, v in tf_idf_srtd}
 
 
-def cal_pmi(lns, dic):
-    return basic_algo.pmi(lns, dic)
+def cal_pmi(lns, dic, kb):
+    return basic_algo.pmi(lns, dic, kb)

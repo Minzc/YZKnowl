@@ -86,7 +86,7 @@ def train(filename, objname):
     dic.add(objname)
     tfidf_scores = local_kw_ext.extr_kw(dataset, kb, dic)
     for tw in dataset:
-        sentences = re.split(ur'[!.?…~;"#:]', kw_util.punc_replace(tw))
+        sentences = re.split(ur'[!.?…~;"#:— ]', kw_util.punc_replace(tw))
         for sen_index, sentence in enumerate(sentences):
             if len(sentence.strip()) == 0:
                 continue
