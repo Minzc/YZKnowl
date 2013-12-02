@@ -78,6 +78,11 @@ def tweet_filter( tweet ):
     return re.sub(r"\s+", " ", tweet)
 
 
+def rm_mention(tweet):
+    tweet = regex_mention.sub(" ", tweet)
+    return re.sub(r"\s+", " ", tweet)
+
+
 def punc_replace(ln):
     ln = re.sub(ur"。", '.', ln)
     ln = re.sub(ur"；", ';', ln)

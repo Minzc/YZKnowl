@@ -376,7 +376,7 @@ def seg_twts(filename):
 def train_data_clean(infile):
     ad_words = [u'关注', u'转发', u'获取', u'机会', u'赢取', u'推荐'
                 , u'活动', u'好友', u'支持', u'话题', u'详情', u'地址', u'赢', u'抽奖', u'好运', u'中奖']
-    ads = [u'视频', u'投票', u'【', u'《', u'博文', u'分享自']
+    ads = [u'视频', u'投票', u'【', u'《', u'博文', u'分享自', u'详情']
     lns = [ln.decode('utf-8').lower() for ln in open(infile).readlines()]
     clean_lns = {}
     total_dic = {kw.decode('utf-8').strip() for kw in open('dictionary/real_final_dic.txt').readlines()}

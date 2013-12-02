@@ -71,7 +71,7 @@ def load_knw_base(obj_name):
         for instance in instances.split('|'):
             if len(instance) != 0:
                 knowbase.instances[instance] = entity
-    knowbase.instances[obj_name] = obj_name
+    knowbase.instances.setdefault(obj_name, obj_name)
     knowbase.features[obj_name] = knowbase.OBJECT
     knowbase.stop_dic = _load_stopdic()
     return knowbase
@@ -171,12 +171,14 @@ def load_mdl(infile=MODEL_FILE_PATH):
             Local_Model.CERNTAIN_PAIR.inc(feature + '$' + sentiment, int(count))
     return Local_Model
 
+
 def load_idf():
     idf = {}
     for ln in open('dictionary/idf.txt').readlines():
         kw, value = ln.decode('utf-8').strip().split(' ')
         idf[kw] = float(value)
     return idf
+
 
 def load_amb():
     amb = {}

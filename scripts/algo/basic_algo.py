@@ -11,15 +11,16 @@ from scripts.util import MyLib, kw_util
 __author__ = 'congzicun'
 
 
-def tf_idf(lns, idf_value):
+def tf_idf(lns, idf_value, dic):
     kw_frq = nltk.FreqDist()
     # TF
     for ln in lns:
-        kws = list(jieba.posseg.cut(ln))
+        kws = MyLib.seg(ln, dic)
         for kw in kws:
-            if 'n' in kw.flag or kw.flag == 'v':
-                kw_frq.inc(kw.word)
-        #IDF
+            # if 'n' in kw.flag or kw.flag == 'v':
+            # kw_frq.inc(kw.word)
+         kw_frq.inc(kw)
+    #IDF
     tf_idf = {}
     for k, v in kw_frq.items():
         tf_idf[k] = v * idf_value.get(k, 15.5312024064)

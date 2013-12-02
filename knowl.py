@@ -1,4 +1,4 @@
-from scripts.util import file_loader
+from scripts.util import file_loader, trans_redis
 
 __author__ = 'congzicun'
 import sys
@@ -33,3 +33,5 @@ if __name__ == '__main__':
             print k.encode('utf-8'), v
     elif sys.argv[1] == 'seg':
         FreqBase.seg_twts(sys.argv[2])
+    elif sys.argv[1] == 'trans':
+        trans_redis.trans_kv()

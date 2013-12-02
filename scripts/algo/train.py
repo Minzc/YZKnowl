@@ -32,15 +32,19 @@ def stat(tokens, localmodel, kb):
         feature = MyLib.dcd_ds_ftr_type(token1, token2)
         pair = token1.keyword + '$' + token2.keyword
         tmppair = token1.origin + '$' + token2.origin
+        increment = 1
+        if token1.phrspos == token2.phrspos:
+            increment = 1
+
         localmodel.F_S_TYPE.setdefault(pair, nltk.FreqDist())
-        localmodel.F_S_TYPE[pair].inc(feature.word_dis)
-        localmodel.F_S_TYPE[pair].inc(feature.phrs_dis)
-        localmodel.F_S_TYPE[pair].inc(feature.snt_dis)
-        localmodel.F_S_TYPE[pair].inc(feature.rltv_dis)
+        localmodel.F_S_TYPE[pair].inc(feature.word_dis, increment)
+        localmodel.F_S_TYPE[pair].inc(feature.phrs_dis, increment)
+        localmodel.F_S_TYPE[pair].inc(feature.snt_dis, increment)
+        localmodel.F_S_TYPE[pair].inc(feature.rltv_dis, increment)
         if tmppair in used_pair:
             continue
         used_pair.add(tmppair)
-        localmodel.FS_NUM.inc(pair)
+        localmodel.FS_NUM.inc(pair, increment)
 
     has_sentiment = False
     for token in tokens:
@@ -83,8 +87,8 @@ def train(filename, objname):
     dataset = file_loader.load_data_set(filename)
     dic = file_loader.load_dic()
     kb = file_loader.load_knw_base(objname)
-    dic.add(objname)
-    tfidf_scores = local_kw_ext.extr_kw(dataset, kb, dic)
+    dic |= set(kb.instances.keys())
+    tfidf_scores = local_kw_ext.extr_kw(dataset, kb, objname, dic)
     for tw in dataset:
         sentences = re.split(ur'[!.?…~;"#:— ]', kw_util.punc_replace(tw))
         for sen_index, sentence in enumerate(sentences):

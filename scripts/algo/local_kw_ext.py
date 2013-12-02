@@ -7,19 +7,20 @@ from scripts.util import kw_util, file_loader
 __author__ = 'congzicun'
 
 
-def extr_kw(lns, kb, dic):
+def extr_kw(lns, kb, obj_name, dic):
     idf = file_loader.load_idf()
     phrases = set()
     for ln in lns:
         ln = kw_util.tweet_filter(re.sub('#(.+?)#', ' ', ln))
         phrases |= set(ln.split(' '))
 
-    tf_idf_srtd = basic_algo.tf_idf(phrases, idf)
+    tf_idf_srtd = basic_algo.tf_idf(phrases, idf, dic)
     added_ftr_num = min(len(tf_idf_srtd), 20)
     print 'LOCAL FEATURE:'
     counter = 0
     for k, v in tf_idf_srtd:
-        if k not in kb.instances and k not in kb.sentiments and k not in kb.stop_dic and len(k) > 1 and not k.encode('utf-8').isalnum():
+        if k not in kb.instances and k not in kb.sentiments and k not in kb.stop_dic \
+                and len(k) > 1 and not k.encode('utf-8').isalnum() and k not in obj_name:
             counter += 1
             if counter == added_ftr_num:
                 break
