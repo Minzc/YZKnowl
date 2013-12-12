@@ -24,9 +24,9 @@ def trans_kv():
                     sentiment.add(i)
 
     combinekw = {k1 + k2: k2 for k1 in degree for k2 in sentiment}
-    combinekw.update({k1 + '的': k1 for k1 in sentiment})
+    combinekw.update({k1 + u'的': k1 for k1 in sentiment})
 
-    r = redis.StrictRedis()
+    r = redis.StrictRedis(host='192.168.1.123', port=6379)
     file_reader = open('global_cooccur.txt')
     kw_dist = nltk.FreqDist()
     key = 'global:mdl'
@@ -38,7 +38,7 @@ def trans_kv():
         kw_dist.inc(k1)
         pair = k1 + '$' + k2
         r.zadd(key, float(num), pair)
-        print pair + '$' + str(num)
+        print (pair + '$' + str(num)).encode('utf-8')
 
     for k, v in kw_dist.items():
         r.zadd(key, float(v), k)
