@@ -37,8 +37,8 @@ def trans_kv():
         k1 = combinekw.get(k1, k1)
         kw_dist.inc(k1)
         pair = k1 + '$' + k2
-        r.zadd(key, float(num), pair)
+        r.hset(key, float(num), pair)
         print (pair + '$' + str(num)).encode('utf-8')
 
     for k, v in kw_dist.items():
-        r.zadd(key, float(v), k)
+        r.hset(key, float(v), k)
