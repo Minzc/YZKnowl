@@ -29,7 +29,7 @@ def trans_kv():
     r = redis.StrictRedis(host='192.168.1.123', port=6379)
     file_reader = open('global_cooccur.txt')
     kw_dist = nltk.FreqDist()
-    key = 'global:mdl'
+    key = 'global:mdl:'
     for ln in file_reader:
         ln = ln.decode('utf-8').strip()
         pair, num = ln.split('\t')
@@ -37,8 +37,8 @@ def trans_kv():
         k1 = combinekw.get(k1, k1)
         kw_dist.inc(k1)
         pair = k1 + '$' + k2
-        r.hset(key, float(num), pair)
+        r.set(key + pair, float(num))
         print (pair + '$' + str(num)).encode('utf-8')
 
     for k, v in kw_dist.items():
-        r.hset(key, float(v), k)
+        r.set(key + k, float(v))
