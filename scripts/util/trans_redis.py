@@ -26,7 +26,7 @@ def trans_kv():
     combinekw = {k1 + k2: k2 for k1 in degree for k2 in sentiment}
     combinekw.update({k1 + u'的': k1 for k1 in sentiment})
 
-    r = redis.StrictRedis(host='192.168.1.123', port=6379)
+    r = redis.StrictRedis(port=6377)
     file_reader = open('global_cooccur.txt')
     kw_dist = nltk.FreqDist()
     key = 'global:mdl:'
