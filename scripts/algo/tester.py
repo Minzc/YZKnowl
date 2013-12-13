@@ -2,13 +2,19 @@
 # -*- coding: utf-8 -*-
 import re
 import operator
+
 import nltk
+import redis
+
 from scripts.algo import local_kw_ext
 from scripts.model.model import Local_Model
 from scripts.ruler import fs_ruler, prior_rules
 from scripts.util import file_loader, kw_util, MyLib
 
+
 __author__ = 'congzicun'
+
+redis_client = redis.StrictRedis(port=6377)
 
 
 class fspair:
@@ -164,7 +170,7 @@ def cal_token_lkhd(token1, token2, local_model):
     else:
         P_c_fs = 0.33 * 0.33 * 0.5
 
-    pair_num = local_model.FS_NUM.get(pair_name, local_model.KW_DIS.get(token1.keyword)) - 1
+    pair_num = local_model.FS_NUM.get(pair_name, local_model.KW_DIS.get(token1.keyword))
     P_f_s = pair_num / local_model.TRAIN_SET_VOLUME
 
     likehd = P_c_fs * P_f_s
@@ -188,6 +194,9 @@ def cal_f(tokenlst, kb, local_model, objname):
 
 
 def cal_fs(f, tokenlst, kb, local_model, amb, pmi, objname):
+    """
+    :return: (f_token, s_token, fs_score, 100 - distance)
+    """
     fs_pair = \
         [(f, s, obj) for s in tokenlst if s.keyword in kb.sentiments for obj in tokenlst if obj.keyword == objname]
     fs_list = []
@@ -203,9 +212,35 @@ def cal_fs(f, tokenlst, kb, local_model, amb, pmi, objname):
     return fs_list
 
 
+def get_glbl_score(fs_lst):
+    glbl_fs_score = {}
+    tmp_fs_score = []
+    for f, s, _, _ in fs_lst:
+        pair_num = redis_client.zscore('global:mdl', f.origin + '$' + f.origin)
+        if pair_num is None:
+            pair_num = 0
+        f_score = redis_client.zscore('global:mdl', f.origin)
+        if f_score is None:
+            f_score = 0
+        tmp_fs_score.append((f, s, float(pair_num + 1) / float(f_score + 1)))
+    tmp_fs_score = sorted(tmp_fs_score, key=operator.itemgetter(2), reverse=True)
+    for i, fs_tuple in enumerate(tmp_fs_score):
+        glbl_fs_score[(fs_tuple[0], fs_tuple[1])] = i
+
+
+def vote_fs(lcl_fs_lst, glbl_fs_msp):
+    vote_fs_lst = []
+    for i, fs_tpl in enumerate(lcl_fs_lst):
+        glbl_fs_rnk = glbl_fs_msp.get((fs_tpl[0], fs_tpl[1]))
+        vote_fs_lst.append((fs_tpl[0], fs_tpl[1], fs_tpl[2], i + glbl_fs_rnk))
+    return sorted(vote_fs_lst, key=operator.itemgetter(2))
+
+
 def f_cmp(fs_lst):
     used_senti = set()
-    std_fs_lst = sorted(fs_lst, key=operator.itemgetter(2, 3), reverse=True)
+    lcl_std_lst = sorted(fs_lst, key=operator.itemgetter(2, 3), reverse=True)
+    glbl_std_lst = get_glbl_score(fs_lst)
+    std_fs_lst = vote_fs(lcl_std_lst, glbl_std_lst)
     valid_pair = []
     for f, s, v, v2 in std_fs_lst:
         print '#', f.origin.encode('utf-8'), s.origin.encode('utf-8'), v, v2
