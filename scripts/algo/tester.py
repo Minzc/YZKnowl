@@ -213,41 +213,43 @@ def cal_fs(f, tokenlst, kb, local_model, amb, pmi, objname):
 
 
 def get_glbl_score(fs_lst):
-    glbl_fs_score = {}
+    glbl_fs_rank = {}
     tmp_fs_score = []
     for f, s, _, _ in fs_lst:
-        pair_num = redis_client.zscore('global:mdl', f.origin + '$' + f.origin)
+        pair_num = redis_client.get(f.origin + '$' + s.origin)
         if pair_num is None:
             pair_num = 0
-        f_score = redis_client.zscore('global:mdl', f.origin)
+        f_score = redis_client.get(f.origin)
         if f_score is None:
             f_score = 0
         tmp_fs_score.append((f, s, float(pair_num + 1) / float(f_score + 1)))
     tmp_fs_score = sorted(tmp_fs_score, key=operator.itemgetter(2), reverse=True)
     for i, fs_tuple in enumerate(tmp_fs_score):
-        glbl_fs_score[(fs_tuple[0], fs_tuple[1])] = i
+        glbl_fs_rank[(fs_tuple[0], fs_tuple[1])] = i
+    return glbl_fs_rank
 
 
-def vote_fs(lcl_fs_lst, glbl_fs_msp):
+def vote_fs(lcl_fs_rank, glbl_fs_rank):
     vote_fs_lst = []
-    for i, fs_tpl in enumerate(lcl_fs_lst):
-        glbl_fs_rnk = glbl_fs_msp.get((fs_tpl[0], fs_tpl[1]))
-        vote_fs_lst.append((fs_tpl[0], fs_tpl[1], fs_tpl[2], i + glbl_fs_rnk))
-    return sorted(vote_fs_lst, key=operator.itemgetter(2))
+    for i, fs_tpl in enumerate(lcl_fs_rank):
+        # global和local之间加权
+        # 分数越低越好
+        glbl_rnk = glbl_fs_rank.get((fs_tpl[0], fs_tpl[1]))
+        vote_fs_lst.append((fs_tpl[0], fs_tpl[1], fs_tpl[2], i + glbl_rnk))
+    return sorted(vote_fs_lst, key=operator.itemgetter(3))
 
 
 def f_cmp(fs_lst):
     used_senti = set()
-    lcl_std_lst = sorted(fs_lst, key=operator.itemgetter(2, 3), reverse=True)
-    glbl_std_lst = get_glbl_score(fs_lst)
-    std_fs_lst = vote_fs(lcl_std_lst, glbl_std_lst)
+    lcl_fs_rank = sorted(fs_lst, key=operator.itemgetter(2, 3), reverse=True)
+    glbl_fs_rank = get_glbl_score(fs_lst)
+    std_fs_lst = vote_fs(lcl_fs_rank, glbl_fs_rank)
     valid_pair = []
     for f, s, v, v2 in std_fs_lst:
         print '#', f.origin.encode('utf-8'), s.origin.encode('utf-8'), v, v2
         if s not in used_senti:
             used_senti.add(s)
             valid_pair.append((f, s, v))
-
     return valid_pair
 
 
